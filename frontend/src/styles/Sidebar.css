@@ -1,13 +1,19 @@
-
 .sidebar {
   width: 220px;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  position: sticky;
+  top: 0;
+  flex-shrink: 0;
+  overflow-y: auto;
+
   background: #192855;
   color: white;
   padding: 24px 16px;
   display: flex;
   flex-direction: column;
 }
+
 
 /* RoomieReport branding */
 
