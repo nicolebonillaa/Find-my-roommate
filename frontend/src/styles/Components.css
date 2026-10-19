@@ -203,16 +203,18 @@
   color: var(--text-muted);
 }
 
-.locked__icon {
-  font-size: 22px;
-}
-
 .locked__inline {
   flex-direction: row;
   justify-content: space-between;
   padding: 0;
   border: none;
   font-size: 12px;
+}
+
+.locked__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* ProgressBar */
@@ -251,7 +253,7 @@
 /* ScoreGrid */
 .score-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--space-3);
 }
 

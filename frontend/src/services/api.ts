@@ -10,6 +10,7 @@ import {
   users,
 } from "../data/mock";
 import type {
+  ActivityItem,
   PendingReview,
   Review,
   RoommateRequest,
@@ -71,6 +72,6 @@ export function getDashboardStats() {
   return delay(dashboardStats);
 }
 
-export function getRecentActivity() {
+export function getRecentActivity(): Promise<ActivityItem[]> {
   return delay(recentActivity);
 }

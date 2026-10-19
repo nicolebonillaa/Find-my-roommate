@@ -1,0 +1,376 @@
+
+/* Auth page — based on your original HTML mockup */
+
+.rr-auth {
+  --rr-auth-bg: #f1f4fa;
+  min-height: 100vh;
+  background: var(--rr-auth-bg);
+  color: var(--text);
+  line-height: 1.45;
+}
+
+.rr-auth__wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: var(--space-6) 56px var(--space-7);
+}
+
+/* Branding */
+
+.rr-auth__brand {
+  text-align: center;
+}
+
+.rr-auth__brand h2 {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--navy);
+  margin: 0;
+}
+
+.rr-auth__brand p {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Main authentication card */
+
+.rr-auth__main {
+  width: 100%;
+  max-width: 440px;
+  margin: 6vh auto auto;
+  padding: var(--space-6);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 1px 2px rgba(26, 36, 85, 0.04),
+    0 10px 28px rgba(26, 36, 85, 0.06);
+}
+
+.rr-auth__view {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Log in / Create account tabs */
+
+.rr-auth__tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: var(--space-5);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.rr-auth__tabs a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  height: 36px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.rr-auth__tabs a.is-active {
+  background: #fff;
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(26, 36, 85, 0.14);
+}
+
+/* Titles */
+
+.rr-auth__title {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.rr-auth__sub {
+  margin: 6px 0 var(--space-5);
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* Form layout */
+
+.rr-auth__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.rr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rr-field label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rr-field__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+/* Validation errors */
+
+.rr-field__error {
+  display: none;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--danger);
+  margin: 0;
+}
+
+.rr-field.has-error .rr-field__error {
+  display: flex;
+}
+
+.rr-field.has-error .rr-input {
+  border-color: var(--danger);
+}
+
+/* Inputs */
+
+.rr-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.rr-input::placeholder {
+  color: #6b7790;
+}
+
+.rr-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+/* Password show/hide */
+
+.rr-pw {
+  position: relative;
+}
+
+.rr-pw .rr-input {
+  padding-right: 46px;
+}
+
+.rr-pw__toggle {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-muted);
+}
+
+.rr-pw__toggle:hover {
+  background: var(--bg);
+}
+
+/* Buttons */
+
+.rr-auth__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 44px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rr-auth__btn--primary {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: var(--shadow-button);
+}
+
+.rr-auth__btn--primary:hover {
+  background: var(--primary-dark);
+}
+
+.rr-auth__btn--secondary {
+  background: #fff;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.rr-auth__btn--secondary:hover {
+  background: var(--bg);
+}
+
+.rr-auth__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Secondary text */
+
+.rr-auth__fine {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 0;
+}
+
+.rr-auth__fine a {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.rr-auth__fine a:hover,
+.rr-auth__forgot:hover,
+.rr-auth__back:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.rr-auth__forgot {
+  font-size: 12px;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* Privacy footer */
+
+.rr-auth__foot {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.rr-auth__foot svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--primary);
+}
+
+/* Email verification */
+
+.rr-auth__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--space-5);
+  font-size: 13px;
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.rr-auth__verify {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.rr-auth__verify-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.rr-auth__verify-text {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.rr-auth__verify-text strong {
+  color: var(--text);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.rr-auth__verify-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.rr-auth__sent {
+  font-size: 12px;
+  color: var(--green-text);
+  text-align: center;
+  margin: 0;
+}
+
+.rr-auth__notice {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 0;
+}
+
+/* Keyboard accessibility */
+
+.rr-auth :focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Mobile screens */
+
+@media (max-width: 600px) {
+  .rr-auth__wrap {
+    padding: var(--space-5) var(--space-4);
+  }
+
+  .rr-auth__main {
+    padding: var(--space-5);
+    border-radius: var(--radius);
+  }
+}
