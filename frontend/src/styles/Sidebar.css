@@ -1,12 +1,21 @@
 .sidebar {
   width: 220px;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  position: sticky;
+  top: 0;
+  flex-shrink: 0;
+  overflow-y: auto;
+
   background: #192855;
   color: white;
   padding: 24px 16px;
   display: flex;
   flex-direction: column;
 }
+
+
+/* RoomieReport branding */
 
 .sidebar__brand {
   margin-bottom: 40px;
@@ -22,12 +31,16 @@
   color: #b6c5e8;
 }
 
+/* Workspace label */
+
 .sidebar__label {
   font-size: 11px;
   color: #90baff;
   letter-spacing: 1px;
   margin-bottom: 15px;
 }
+
+/* Navigation links */
 
 .sidebar__nav {
   display: flex;
@@ -51,18 +64,120 @@
 }
 
 .sidebar__nav a.active {
-    background: #344574;
-    font-weight: 700;
+  background: #344574;
+  font-weight: 700;
 }
+
+/* Bottom user section */
 
 .sidebar__user {
   margin-top: auto;
   background: #2b3b69;
-  padding: 15px;
+  padding: 10px;
   border-radius: 12px;
 }
 
-.sidebar__user p {
+/* Clickable profile row */
+
+.sidebar__user-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 3px 0;
+  background: transparent;
+  border: none;
+  color: white;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* Avatar */
+
+.sidebar__avatar {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f7a35c, #e8795f);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Name and student label */
+
+.sidebar__user-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+
+.sidebar__user-info strong {
+  font-size: 12px;
+  font-weight: 700;
+  color: white;
+  white-space: nowrap;
+}
+
+.sidebar__user-info span {
+  font-size: 10px;
   color: #cbd8f5;
-  font-size: 11px;
+}
+
+.sidebar__user-toggle > svg {
+  color: #cbd8f5;
+  flex-shrink: 0;
+}
+
+/* Expanded menu */
+
+.sidebar__user-menu {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #50608a;
+}
+
+/* Sign-out button */
+
+.sidebar__signout {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  background: #22345f;
+  border: 1px solid #52638c;
+  border-radius: 8px;
+  color: #f2f6ff;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.sidebar__signout:hover {
+  background: #344574;
+  border-color: #90baff;
+}
+
+.sidebar__signout svg {
+  flex-shrink: 0;
+}
+
+/* Keyboard accessibility */
+.sidebar__user-toggle:focus-visible,
+.sidebar__signout:focus-visible {
+  outline: 2px solid #90baff;
+  outline-offset: 2px;
 }

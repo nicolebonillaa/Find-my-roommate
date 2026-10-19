@@ -1,4 +1,5 @@
 import type {
+  ActivityItem,
   Connection,
   PendingReview,
   Review,
@@ -161,6 +162,8 @@ export const reviews: Review[] = [
     communicationScore: 4.0,
     noiseScore: 3.5,
     paymentScore: 5.0,
+    privacyScore: 4.0,
+    responsibilityScore: 4.5,
     positiveComment: "Alex was reliable with bills and respectful of my belongings.",
     status: "published",
     submittedAt: "2026-10-14T16:20:00",
@@ -184,8 +187,8 @@ export const dashboardStats = {
   trustScore: { value: 4.8, note: "Based on your history" },
 };
 
-export const recentActivity = [
-  { id: "a1", icon: "✓", title: "Alex accepted your request", time: "Today, 10:42 AM" },
-  { id: "a2", icon: "★", title: "Your review was published", time: "Yesterday, 4:20 PM" },
-  { id: "a3", icon: "◈", title: "Jordan sent you a request", time: "Monday, 2:11 PM" },
+export const recentActivity: ActivityItem[] = [
+  { id: "a1", kind: "accepted", title: "Alex accepted your request", time: "Today, 10:42 AM" },
+  { id: "a2", kind: "published", title: "Your review was published", time: "Yesterday, 4:20 PM" },
+  { id: "a3", kind: "request", title: "Jordan sent you a request", time: "Monday, 2:11 PM" },
 ];

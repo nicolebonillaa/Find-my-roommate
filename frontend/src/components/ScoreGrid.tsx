@@ -6,6 +6,8 @@ export default function ScoreGrid({ scores }: { scores: ReviewScores }) {
     { label: "Communication", value: scores.communicationScore },
     { label: "Noise", value: scores.noiseScore },
     { label: "Payments", value: scores.paymentScore },
+    { label: "Privacy", value: scores.privacyScore },
+    { label: "Responsibility", value: scores.responsibilityScore },
   ];
   return (
     <div className="score-grid">

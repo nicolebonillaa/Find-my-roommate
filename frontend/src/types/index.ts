@@ -60,13 +60,13 @@ export interface Connection {
 
 export type ReviewStatus = "submitted" | "published" | "hidden";
 
-// TODO(team): finalize this category list. Designs show 4;
-// the team guide also lists privacy + responsibility.
 export interface ReviewScores {
   cleanlinessScore: number;
   communicationScore: number;
   noiseScore: number;
   paymentScore: number;
+  privacyScore: number;
+  responsibilityScore: number;
 }
 
 export interface Review extends ReviewScores {
@@ -90,6 +90,16 @@ export interface Report {
   reason: string;
   explanation: string;
   status: ReportStatus;
+}
+
+// One row in the Dashboard "Recent activity" list. `kind` picks the icon.
+export type ActivityKind = "accepted" | "published" | "request";
+
+export interface ActivityItem {
+  id: string;
+  kind: ActivityKind;
+  title: string;
+  time: string; // display text for now ("Today, 10:42 AM")
 }
 
 // What the "reviews waiting for you" card needs.

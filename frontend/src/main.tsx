@@ -4,7 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { AuthProvider } from "./auth/AuthProvider";
 import "./styles/global.css";
-import "./styles/components.css";
+import "./styles/Components.css";
 import "./styles/StudentCard.css";
 
 createRoot(document.getElementById("root")!).render(
