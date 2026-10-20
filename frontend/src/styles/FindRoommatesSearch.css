@@ -1,0 +1,109 @@
+
+/* Only the Find Roommates result toolbar and grid;
+   student cards use Components.css. */
+
+.roomie-results__toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.roomie-results__toolbar p {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.roomie-results__toolbar strong {
+  color: var(--text);
+}
+
+.roomie-results__sort select {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--text);
+  background: var(--card);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.roomie-results__visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+}
+
+.roomie-results__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.roomie-results__pills:empty {
+  display: none;
+}
+
+.roomie-results__pills button:not(.roomie-results__reset) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.roomie-results__pills .roomie-results__reset {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-decoration: underline;
+}
+
+.roomie-results__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+.roomie-results__empty {
+  grid-column: 1 / -1;
+  padding: var(--space-7) var(--space-5);
+  border: 1px dashed var(--border-dashed);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  text-align: center;
+}
+
+.roomie-results__empty h3 {
+  font-size: 16px;
+}
+
+.roomie-results__empty p {
+  margin: 8px 0 18px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 1050px) {
+  .roomie-results__grid {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+}
+
+@media (max-width: 650px) {
+  .roomie-results__grid {
+    grid-template-columns: 1fr;
+  }
+}
