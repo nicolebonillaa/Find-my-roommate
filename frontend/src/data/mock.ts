@@ -53,6 +53,28 @@ export const users: Record<string, User> = {
     verificationStatus: "verified",
     avatarColor: "linear-gradient(135deg, #f58fb1, #d9487d)",
   },
+
+  marcus: {
+    id: "marcus",
+    name: "Marcus Lee",
+    email: "marcus.lee@my.csun.edu",
+    verificationStatus: "verified",
+    avatarColor: "linear-gradient(135deg,#93c5fd,#3b82f6)",
+  },
+  tyler: {
+    id: "tyler",
+    name: "Tyler Nguyen",
+    email: "tyler.nguyen@my.csun.edu",
+    verificationStatus: "verified",
+    avatarColor: "linear-gradient(135deg,#fcd34d,#f59e0b)",
+  },
+  sofia: {
+    id: "sofia",
+    name: "Sofia Alvarez",
+    email: "sofia.alvarez@my.csun.edu",
+    verificationStatus: "verified",
+    avatarColor: "linear-gradient(135deg,#5eead4,#14b8a6)",
+  },
 };
 
 export const CURRENT_USER_ID = "maya";
@@ -139,6 +161,31 @@ export const requests: RoommateRequest[] = [
     status: "pending",
     createdAt: "2026-10-13T09:30:00",
   },
+
+  {
+    id: "req3",
+    senderId: "marcus",
+    receiverId: "maya",
+    message: "We were on the same dorm floor.",
+    status: "declined",
+    createdAt: "2026-10-10T11:00:00",
+  },
+  {
+    id: "req4",
+    senderId: "maya",
+    receiverId: "tyler",
+    message: "We lived in the same building on Zelzah.",
+    status: "pending",
+    createdAt: "2026-10-18T10:00:00",
+  },
+  {
+    id: "req5",
+    senderId: "maya",
+    receiverId: "sofia",
+    message: "Roommates last spring semester?",
+    status: "pending",
+    createdAt: "2026-10-19T09:00:00",
+  },
 ];
 
 export const connections: Connection[] = [
@@ -148,6 +195,12 @@ export const connections: Connection[] = [
     confirmedBy: ["maya", "alex"],
     status: "review_open",
     reviewDeadline: "2026-10-21T23:59:00",
+  },
+  {
+    id: "conn2",
+    userIds: ["maya", "kayla"],
+    confirmedBy: ["kayla"],
+    status: "awaiting_confirmation",
   },
 ];
 

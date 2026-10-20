@@ -1,0 +1,220 @@
+
+/* Requests page */
+
+.requests {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.requests__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Request cards */
+
+.request-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  scroll-margin-top: 24px;
+}
+
+.request-row__info {
+  flex: 1;
+  min-width: 200px;
+}
+
+.request-row__name {
+  display: inline-block;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.request-row__name:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.request-row__text {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.request-row__text strong {
+  color: var(--text);
+}
+
+.request-row__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+/* Request states */
+
+.request-row--highlight {
+  background: linear-gradient(
+    135deg,
+    var(--primary-soft),
+    #f4f7ff
+  );
+  border-color: #dbe5ff;
+}
+
+.request-row--muted {
+  background: var(--bg);
+}
+
+.request-row--muted .avatar {
+  opacity: 0.5;
+}
+
+.request-row--muted .request-row__name {
+  color: var(--text-muted);
+}
+
+.request-row__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+/* Confirmation section */
+
+.request-row__confirm {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.request-row__confirm p {
+  flex: 1;
+  min-width: 180px;
+}
+
+.request-row__confirm strong {
+  color: var(--text);
+}
+
+/* Text actions */
+
+.request-row__text-btn {
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 6px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.request-row__text-btn:hover {
+  color: var(--danger);
+}
+
+.requests__danger {
+  background: var(--danger);
+  color: #fff;
+  border: 1px solid var(--danger);
+}
+
+/* Empty requests */
+
+.requests__empty {
+  padding: var(--space-5);
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  border: 1px dashed var(--border-dashed);
+  border-radius: var(--radius);
+}
+
+/* Feedback toast */
+
+.requests__toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  background: var(--navy);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(26, 36, 85, 0.3);
+  z-index: 9;
+}
+
+/* Demo controls */
+
+.requests__demo {
+  margin-top: var(--space-5);
+  font-size: 12px;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.requests__demo button {
+  font: inherit;
+  font-size: 12px;
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Highlight notification target */
+
+.request-row--flash {
+  animation: requests-flash 1.6s ease;
+}
+
+@keyframes requests-flash {
+  0%, 60% {
+    box-shadow: 0 0 0 3px #c7d4ff;
+    border-color: var(--primary);
+  }
+
+  100% {
+    box-shadow: none;
+  }
+}
+
+/* Responsive layout */
+
+@media (max-width: 800px) {
+  .request-row__actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .request-row__actions .btn {
+    flex: 1;
+  }
+}
