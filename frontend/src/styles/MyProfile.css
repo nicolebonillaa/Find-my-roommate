@@ -1,0 +1,175 @@
+/* =========================
+   Profile Layout
+========================= */
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+@media (max-width: 1024px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================
+   Profile Card
+========================= */
+
+.profile-card {
+  background: var(--card);
+}
+
+.profile-card__content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.profile-card__name {
+  margin: 0;
+  color: var(--text);
+}
+
+.profile-card__area {
+  margin: 0;
+  color: var(--text);
+}
+
+.profile-card__bio-preview {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: normal;
+}
+
+/* =========================
+   Success Message
+========================= */
+
+.profile-success {
+  background: var(--green-bg);
+  color: var(--green-text);
+  padding: var(--space-4);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-4);
+}
+
+/* =========================
+   Lifestyle Preferences
+========================= */
+
+.preferences-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+}
+
+.preference-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  background: var(--card);
+
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  transition: box-shadow 0.15s ease;
+}
+
+.preference-card:hover {
+  box-shadow: var(--shadow);
+}
+
+.preference-card__label {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 700px) {
+  .preferences-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================
+   About Me
+========================= */
+
+.about-card p,
+.about-me {
+  line-height: 1.8;
+  color: var(--text-muted);
+}
+
+/* =========================
+   Edit Profile Form
+========================= */
+
+.edit-profile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.edit-profile__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.edit-profile__group label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.edit-profile input,
+.edit-profile textarea,
+.edit-profile select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: white;
+}
+
+.edit-profile textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.edit-profile__actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.edit-profile__error {
+  color: var(--danger);
+  font-size: 14px;
+}
+
+.edit-profile__success {
+  color: var(--green-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.edit-profile__note {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Better spacing for preference selects */
+
+.edit-profile .preferences-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
