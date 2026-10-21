@@ -1,7 +1,7 @@
-
-/* Main Topbar */
-
+/* Topbar */
 .topbar {
+  position: relative;
+  z-index: 30;
   height: var(--topbar-height);
   display: flex;
   align-items: center;
@@ -10,42 +10,18 @@
   padding: 0 var(--space-5);
   background: var(--card);
   border-bottom: 1px solid var(--border);
-  position: relative;
-  z-index: 30;
   overflow: visible;
 }
 
-/* Search */
-
-.topbar__search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 1 360px;
-  padding: 0 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  color: var(--text-faint);
-}
-
-.topbar__search input {
-  flex: 1;
-  min-width: 0;
-  padding: 9px 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 13px;
-  color: var(--text);
-}
-
-/* Bell notification button */
+/* Notification area */
 
 .topbar__notifications {
   position: relative;
   margin-left: auto;
+  flex-shrink: 0;
 }
+
+/* Notification bell */
 
 .topbar__icon-btn {
   position: relative;
@@ -54,22 +30,41 @@
   justify-content: center;
   width: 36px;
   height: 36px;
+  padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg);
   color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
 }
+
+.topbar__icon-btn:hover {
+  background: var(--primary-soft);
+  border-color: #c7d4ff;
+  color: var(--primary);
+}
+
+.topbar__icon-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+/* Show a dot when there are unread notifications */
 
 .topbar__icon-btn.has-dot::after {
   content: "";
   position: absolute;
-  top: 7px;
-  right: 8px;
-  width: 8px;
-  height: 8px;
+  top: 6px;
+  right: 7px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  background: #e8795f;
   border: 2px solid var(--bg);
+  background: #e8795f;
 }
 
 /* Notification dropdown */
@@ -78,130 +73,320 @@
   position: absolute;
   top: calc(100% + 12px);
   right: 0;
-  width: 340px;
+  width: 360px;
+  max-width: calc(100vw - 24px);
+  max-height: min(560px, calc(100dvh - 100px));
+  overflow-y: auto;
+  overflow-x: hidden;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow:
-    0 12px 32px rgba(26, 36, 85, 0.16);
-  z-index: 20;
-  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(26, 36, 85, 0.16);
+  z-index: 100;
 }
+
+/* Notification header */
 
 .notif__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--border);
   font-size: 14px;
   font-weight: 800;
+  color: var(--text);
 }
 
-/* Individual notifications */
+/* Mark all read button */
+
+.notif__mark {
+  padding: 4px;
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.notif__mark:hover:not(:disabled) {
+  color: var(--primary-dark);
+}
+
+.notif__mark:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+/* Notification rows */
+
+.notif__row {
+  position: relative;
+  border-bottom: 1px solid var(--border);
+}
 
 .notif__item {
   display: flex;
-  width: 100%;
+  align-items: center;
   gap: 12px;
-  align-items: flex-start;
-  padding: 12px 16px;
-  border: 0;
-  border-bottom: 1px solid var(--border);
+  width: 100%;
+  min-height: 72px;
+  padding: 12px 44px 12px 16px;
+  border: none;
   background: var(--card);
   color: inherit;
+  font-family: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background 0.2s ease;
 }
 
 .notif__item:hover {
   background: var(--bg);
 }
 
-/* Avatar and notification type */
+/* Highlight unread notifications */
+
+.notif__item.is-unread {
+  background: #f4f7ff;
+}
+
+.notif__item.is-unread:hover {
+  background: var(--primary-soft);
+}
+
+/* Make read notifications less prominent */
+
+.notif__item:not(.is-unread) .notif__copy strong {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Student avatar */
 
 .notif__avatar-wrap {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
+/* Small icon on the avatar */
+
 .notif__kind {
   position: absolute;
-  right: -4px;
-  bottom: -3px;
-  width: 17px;
-  height: 17px;
-  border: 2px solid white;
-  border-radius: 50%;
-  background: var(--primary-soft);
-  color: var(--primary);
+  right: -5px;
+  bottom: -4px;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 19px;
+  height: 19px;
+  border: 2px solid var(--card);
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary);
 }
 
-/* Notification message */
+/* Notification text */
 
 .notif__copy {
-  min-width: 0;
-  flex: 1;
   display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
+  min-width: 0;
 }
 
 .notif__copy strong {
   display: block;
   font-size: 13px;
-  line-height: 1.35;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--text);
 }
 
 .notif__copy > span {
+  display: block;
   font-size: 11px;
+  line-height: 1.4;
   color: var(--text-muted);
 }
 
+/* Arrow beside the notification */
+
 .notif__arrow {
-  color: var(--text-faint);
-  align-self: center;
   flex-shrink: 0;
+  color: var(--text-faint);
 }
 
-/* Dropdown footer */
+/* Unread notification dot */
+
+.notif__dot {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  width: 8px;
+  height: 8px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: var(--primary);
+  pointer-events: none;
+}
+
+/* Dismiss notification button */
+
+.notif__x {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: none;
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text-muted);
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+/* Show the X when hovering or using the keyboard */
+
+.notif__row:hover .notif__x,
+.notif__x:focus-visible {
+  opacity: 1;
+}
+
+/* Hide the unread dot when the X appears */
+
+.notif__row:hover .notif__dot,
+.notif__row:focus-within .notif__dot {
+  opacity: 0;
+}
+
+.notif__x:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+/* Empty notifications message */
+
+.notif__empty {
+  margin: 0;
+  padding: 28px 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Clear all button */
+
+.notif__clear {
+  display: block;
+  width: 100%;
+  padding: 11px 16px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.notif__clear:hover {
+  background: var(--bg);
+  color: var(--danger);
+}
+
+/* View all requests link */
 
 .notif__foot {
   display: block;
   padding: 12px 16px;
-  text-align: center;
+  color: var(--primary);
   font-size: 12px;
   font-weight: 700;
-  color: var(--primary);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
 }
 
 .notif__foot:hover {
-  background: var(--bg);
-  text-decoration: underline;
+  background: var(--primary-soft);
+  text-decoration: none;
 }
 
-.notif__empty {
-  padding: 24px 16px;
-  text-align: center;
-  font-size: 13px;
-  color: var(--text-muted);
+/* Keyboard focus */
+
+.notif__item:focus-visible,
+.notif__mark:focus-visible,
+.notif__clear:focus-visible,
+.notif__x:focus-visible,
+.notif__foot:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
 }
 
 /* Smaller screens */
 
 @media (max-width: 800px) {
-  .topbar__search {
-    display: none;
+  .topbar {
+    gap: var(--space-2);
+    padding: 0 var(--space-3);
   }
 
   .notif {
-    width: min(
-      340px,
-      calc(100vw - 24px)
-    );
-    right: -40px;
+    width: min(360px, calc(100vw - 24px));
+    right: -48px;
+  }
+}
+
+@media (max-width: 480px) {
+  .notif {
+    width: min(340px, calc(100vw - 24px));
+    right: -48px;
+  }
+
+  .notif__item {
+    padding: 12px 40px 12px 12px;
+  }
+
+  .notif__head {
+    padding: 12px;
+  }
+}
+
+/* Keep the dismiss button visible on touch screens */
+
+@media (hover: none) {
+  .notif__x {
+    opacity: 1;
+  }
+
+  .notif__dot {
+    display: none;
   }
 }

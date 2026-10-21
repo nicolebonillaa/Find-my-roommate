@@ -1,0 +1,138 @@
+/* One published review (My reviews) */
+.review-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.review-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.review-card__who {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.review-card__name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.review-card__meta {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.review-card__rating {
+  text-align: right;
+}
+
+.review-card__rating > span:last-child {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Six categories fit in one row on wide screens (ScoreGrid defaults to 3 columns) */
+.review-card .score-grid {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.review-card__quote {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg);
+  border-left: 3px solid #c7d4ff;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 13px;
+}
+
+.review-card__quote span {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.review-card__foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.review-card__sent {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--green-text);
+}
+
+.review-card__report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+
+.review-card__report p {
+  font-weight: 700;
+}
+
+.review-card__reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.review-card__reasons .badge__filter {
+  font-family: inherit;
+  padding: 5px 11px;
+}
+
+.review-card__report-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+@media (max-width: 1100px) {
+  .review-card .score-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 800px) {
+  .review-card__head {
+    flex-direction: column;
+  }
+
+  .review-card__rating {
+    text-align: left;
+  }
+}
+
+@media (max-width: 480px) {
+  .review-card {
+    padding: var(--space-4);
+  }
+
+  .review-card .score-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

@@ -83,6 +83,9 @@ export interface Review extends ReviewScores {
 
 export type ReportStatus = "open" | "hidden" | "dismissed";
 
+// A published review plus the two people involved, for the My reviews page.
+export type PublishedReview = Review & { reviewer: User; reviewedUser: User };
+
 export interface Report {
   id: string;
   reviewId: string;
@@ -108,4 +111,5 @@ export interface PendingReview {
   roommate: User;
   daysLeft: number;
   submittedCount: number; // 0-2, drives the progress bar
+  youSubmitted: boolean; // false = it is your turn to write
 }

@@ -1,4 +1,3 @@
-
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
@@ -18,9 +17,18 @@ export default function AuthLayout({
   return (
     <main className="rr-auth">
       <div className="rr-auth__wrap">
+        {/* RoomieReport branding */}
         <header className="rr-auth__brand">
-          <h2>RoomieReport</h2>
-          <p>CSUN student community</p>
+          <img
+            src="/roomiereport-logo.svg"
+            alt=""
+            className="rr-auth__logo"
+          />
+
+          <div className="rr-auth__brand-text">
+            <h2>RoomieReport</h2>
+            <p>CSUN student community</p>
+          </div>
         </header>
 
         <section

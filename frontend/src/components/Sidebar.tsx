@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "../auth/AuthProvider";
+import roommateLogo from "../assets/roomiereport-logo-white.svg";
 import "../styles/Sidebar.css";
 
 export default function Sidebar() {
@@ -40,9 +41,17 @@ export default function Sidebar() {
     <aside className="sidebar">
       {/* RoomieReport logo */}
       <div className="sidebar__brand">
-        <h2>RoomieReport</h2>
-        <p>CSUN student community</p>
-      </div>
+        <img
+          src={roommateLogo}
+          alt="RoomieReport logo"
+          className="sidebar__logo"
+        />
+
+  <div className="sidebar__brand-text">
+    <h2>RoomieReport</h2>
+    <p>CSUN student community</p>
+  </div>
+</div>
 
       {/* Main navigation */}
       <p className="sidebar__label">WORKSPACE</p>

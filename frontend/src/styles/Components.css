@@ -1,4 +1,4 @@
-/* Shared component styles: Avatar, Button, Pill, Card, PageHeader,
+/* Shared component styles: Avatar, Button, Badge, Card, PageHeader,
    LockedReviews, DeadlineBadge, ProgressBar, StarRating, ScoreGrid */
 
 /* Avatar */
@@ -273,4 +273,29 @@
   font-size: 11px;
   color: var(--text-muted);
   margin-top: 2px;
+}
+
+/* LinkButton: small underlined text button ("Report review", "View rules") */
+.link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  color: var(--primary);
+}
+
+.link-btn--danger:hover {
+  color: var(--danger);
 }

@@ -1,172 +1,135 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { Check, Search, SlidersHorizontal, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Search, X, ChevronRight } from "lucide-react";
 
-import {
-  buildSearchParams,
-  FILTER_GROUPS,
-  readSearchParams,
-  selectedFilterCount,
-  type SearchFilters,
-} from "../utils/roommateSearch";
+import { getStudents } from "../services/api";
+import type { Student } from "../types";
 
 import "../styles/GlobalSearch.css";
 
 export default function GlobalSearch() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const hostRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
 
-  const currentUrl = `${location.pathname}${location.search}`;
-
-  const [query, setQuery] = useState(() => {
-    if (location.pathname === "/find") {
-      return readSearchParams(
-        new URLSearchParams(location.search)
-      ).query;
-    }
-
-    return "";
-  });
-
-  const [filters, setFilters] = useState<SearchFilters>(() => {
-    if (location.pathname === "/find") {
-      return readSearchParams(
-        new URLSearchParams(location.search)
-      ).filters;
-    }
-
-    return {};
-  });
-
+  const [query, setQuery] = useState("");
+  const [students, setStudents] = useState<Student[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [previousUrl, setPreviousUrl] = useState(currentUrl);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const count = selectedFilterCount(filters);
-
-  // Keep the search field synchronized with the results URL.
-  // This also supports the browser Back and Forward buttons.
-  if (previousUrl !== currentUrl) {
-    setPreviousUrl(currentUrl);
-
-    if (location.pathname === "/find") {
-      const applied = readSearchParams(
-        new URLSearchParams(location.search)
-      );
-
-      setQuery(applied.query);
-      setFilters(applied.filters);
-    }
-  }
-
-  // Close the filter popup when clicking outside
-  // or pressing Escape.
   useEffect(() => {
-    if (!isOpen) return;
+    let active = true;
 
-    const onPointerDown = (event: PointerEvent) => {
+    getStudents()
+      .then((data) => {
+        if (!active) return;
+        setStudents(data);
+        setError(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setError(true);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    function handleOutsideClick(event: MouseEvent) {
       if (
-        !hostRef.current?.contains(
-          event.target as Node
-        )
+        searchRef.current &&
+        !searchRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
       }
-    };
+    }
 
-    const onKeyDown = (event: KeyboardEvent) => {
+    function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setIsOpen(false);
       }
-    };
+    }
 
-    document.addEventListener(
-      "pointerdown",
-      onPointerDown
-    );
-
-    document.addEventListener(
-      "keydown",
-      onKeyDown
-    );
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
 
     return () => {
-      document.removeEventListener(
-        "pointerdown",
-        onPointerDown
-      );
-
-      document.removeEventListener(
-        "keydown",
-        onKeyDown
-      );
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
     };
-  }, [isOpen]);
+  }, []);
 
-  function toggleFilter(
-    key: keyof SearchFilters,
-    value: string
-  ) {
-    setFilters((previous) => {
-      const selected = previous[key] ?? [];
+  // Search by student name only.
+  const searchText = query.trim().toLowerCase();
 
-      const next = selected.includes(value)
-        ? selected.filter((item) => item !== value)
-        : [...selected, value];
+  const results = searchText
+    ? students.filter((student) =>
+        student.user.name.toLowerCase().includes(searchText)
+      )
+    : [];
 
-      return {
-        ...previous,
-        [key]: next,
-      };
-    });
+  function openStudent(student: Student) {
+    setQuery("");
+    setIsOpen(false);
+    navigate(`/students/${student.userId}`);
   }
 
-  function submitSearch(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!searchText) return;
+
+    if (results.length === 1) {
+      openStudent(results[0]);
+    } else {
+      setIsOpen(true);
+    }
+  }
+
+  function clearSearch() {
+    setQuery("");
     setIsOpen(false);
-
-    const params = buildSearchParams(query, filters);
-
-    navigate(params ? `/find?${params}` : "/find");
   }
 
   return (
-    <div
-      className="global-search"
-      ref={hostRef}
-    >
+    <div className="global-search" ref={searchRef}>
       <form
         className="global-search__form"
-        onSubmit={submitSearch}
+        onSubmit={handleSubmit}
         role="search"
       >
         <div className="global-search__field">
-          <Search
-            size={16}
-            className="global-search__leading"
-            aria-hidden="true"
-          />
-
           <input
             type="search"
-            aria-label="Search CSUN students"
-            placeholder="Search CSUN students…"
             value={query}
-            onChange={(event) =>
-              setQuery(event.target.value)
-            }
+            placeholder="Search students by name..."
+            aria-label="Search CSUN students by name"
+            aria-expanded={isOpen && Boolean(searchText)}
+            aria-controls="global-search-results"
+            autoComplete="off"
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setIsOpen(true);
+            }}
+            onFocus={() => {
+              if (searchText) setIsOpen(true);
+            }}
           />
 
           {query.length > 0 && (
             <button
-              className="global-search__clear"
               type="button"
-              aria-label="Clear search text"
-              onClick={() => setQuery("")}
+              className="global-search__clear"
+              aria-label="Clear search"
+              onClick={clearSearch}
             >
-              <X size={15} />
+              <X size={16} />
             </button>
           )}
 
@@ -176,115 +139,74 @@ export default function GlobalSearch() {
           />
 
           <button
-            type="button"
-            className="global-search__filter-button"
-            aria-label="Lifestyle filters"
-            aria-expanded={isOpen}
-            aria-controls="roomie-search-filters"
-            onClick={() =>
-              setIsOpen((open) => !open)
-            }
-          >
-            <SlidersHorizontal size={17} />
-
-            {count > 0 && (
-              <span className="global-search__count">
-                {count}
-              </span>
-            )}
-          </button>
-
-          <span
-            className="global-search__divider"
-            aria-hidden="true"
-          />
-
-          <button
-            className="global-search__submit"
             type="submit"
-            aria-label="Search roommates"
-            title="Search roommates"
+            className="global-search__submit"
+            aria-label="Search students"
+            title="Search students"
           >
             <Search size={18} />
           </button>
         </div>
       </form>
 
-      {isOpen && (
-        <section
-          className="global-search__panel"
-          id="roomie-search-filters"
-          aria-label="Lifestyle filters"
+      {isOpen && searchText && (
+        <div
+          className="global-search__results"
+          id="global-search-results"
         >
-          <div className="global-search__panel-heading">
-            <strong>Filter by lifestyle</strong>
+          {loading ? (
+            <p className="global-search__message">
+              Loading students...
+            </p>
+          ) : error ? (
+            <p className="global-search__message">
+              Could not load students. Please try again later.
+            </p>
+          ) : results.length > 0 ? (
+            <>
+              <p className="global-search__results-title">
+                CSUN STUDENTS
+              </p>
 
-            <span>
-              Choose the preferences you want
-            </span>
-          </div>
+              {results.map((student) => {
+                const initials = student.user.name
+                  .split(" ")
+                  .map((part) => part[0])
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase();
 
-          <div className="global-search__groups">
-            {FILTER_GROUPS.map((group) => (
-              <fieldset
-                className="global-search__group"
-                key={group.key}
-              >
-                <legend>{group.label}</legend>
+                return (
+                  <button
+                    key={student.userId}
+                    type="button"
+                    className="global-search__result"
+                    onClick={() => openStudent(student)}
+                  >
+                    <span className="global-search__result-avatar">
+                      {initials}
+                    </span>
 
-                <div className="global-search__chips">
-                  {group.options.map((option) => {
-                    const selected = (
-                      filters[group.key] ?? []
-                    ).includes(option);
+                    <span className="global-search__result-info">
+                      <strong>{student.user.name}</strong>
+                      <small>Verified CSUN student</small>
+                    </span>
 
-                    return (
-                      <button
-                        key={option}
-                        type="button"
-                        className={
-                          selected
-                            ? "is-selected"
-                            : ""
-                        }
-                        aria-pressed={selected}
-                        onClick={() =>
-                          toggleFilter(
-                            group.key,
-                            option
-                          )
-                        }
-                      >
-                        {option}
-                      </button>
-                    );
-                  })}
-                </div>
-              </fieldset>
-            ))}
-          </div>
-
-          <div className="global-search__panel-actions">
-            <button
-              type="button"
-              className="global-search__reset"
-              onClick={() => setFilters({})}
-            >
-              Clear filters
-            </button>
-
-            {count > 0 && (
-              <button
-                type="button"
-                className="global-search__done"
-                onClick={() => setIsOpen(false)}
-              >
-                Done
-                <Check size={15} />
-              </button>
-            )}
-          </div>
-        </section>
+                    <ChevronRight
+                      size={17}
+                      className="global-search__result-arrow"
+                      aria-hidden="true"
+                    />
+                  </button>
+                );
+              })}
+            </>
+          ) : (
+            <p className="global-search__message">
+              No students found for "{query.trim()}".
+            </p>
+          )}
+        </div>
       )}
     </div>
   );

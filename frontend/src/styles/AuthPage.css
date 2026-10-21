@@ -1,5 +1,5 @@
 
-/* Auth page — based on your original HTML mockup */
+/* Auth page */
 
 .rr-auth {
   --rr-auth-bg: #f1f4fa;
@@ -16,23 +16,47 @@
   padding: var(--space-6) 56px var(--space-7);
 }
 
-/* Branding */
+/* RoomieReport branding */
 
 .rr-auth__brand {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0 auto;
+  position: relative;
+  left: -17px;
 }
 
-.rr-auth__brand h2 {
-  font-size: 18px;
+.rr-auth__logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.rr-auth__brand-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  text-align: left;
+}
+
+.rr-auth__brand-text h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
   font-weight: 800;
   color: var(--navy);
-  margin: 0;
 }
 
-.rr-auth__brand p {
-  font-size: 11px;
-  color: var(--text-muted);
+.rr-auth__brand-text p {
   margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
 }
 
 /* Main authentication card */
@@ -367,6 +391,10 @@
 @media (max-width: 600px) {
   .rr-auth__wrap {
     padding: var(--space-5) var(--space-4);
+  }
+
+  .rr-auth__brand {
+    left: 0;
   }
 
   .rr-auth__main {

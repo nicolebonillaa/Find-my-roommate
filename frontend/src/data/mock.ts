@@ -46,34 +46,26 @@ export const users: Record<string, User> = {
     verificationStatus: "verified",
     avatarColor: "linear-gradient(135deg, #b794f6, #8b5cf6)",
   },
+  daniel: {
+    id: "daniel",
+    name: "Daniel Brooks",
+    email: "daniel.brooks@my.csun.edu",
+    verificationStatus: "verified",
+    avatarColor: "linear-gradient(135deg, #fcd34d, #f59e0b)",
+  },
+  mia: {
+    id: "mia",
+    name: "Mia Torres",
+    email: "mia.torres@my.csun.edu",
+    verificationStatus: "verified",
+    avatarColor: "linear-gradient(135deg, #f58fb1, #d9487d)",
+  },
   priya: {
     id: "priya",
     name: "Priya Shah",
     email: "priya.shah@my.csun.edu",
     verificationStatus: "verified",
     avatarColor: "linear-gradient(135deg, #f58fb1, #d9487d)",
-  },
-
-  marcus: {
-    id: "marcus",
-    name: "Marcus Lee",
-    email: "marcus.lee@my.csun.edu",
-    verificationStatus: "verified",
-    avatarColor: "linear-gradient(135deg,#93c5fd,#3b82f6)",
-  },
-  tyler: {
-    id: "tyler",
-    name: "Tyler Nguyen",
-    email: "tyler.nguyen@my.csun.edu",
-    verificationStatus: "verified",
-    avatarColor: "linear-gradient(135deg,#fcd34d,#f59e0b)",
-  },
-  sofia: {
-    id: "sofia",
-    name: "Sofia Alvarez",
-    email: "sofia.alvarez@my.csun.edu",
-    verificationStatus: "verified",
-    avatarColor: "linear-gradient(135deg,#5eead4,#14b8a6)",
   },
 };
 
@@ -161,31 +153,6 @@ export const requests: RoommateRequest[] = [
     status: "pending",
     createdAt: "2026-10-13T09:30:00",
   },
-
-  {
-    id: "req3",
-    senderId: "marcus",
-    receiverId: "maya",
-    message: "We were on the same dorm floor.",
-    status: "declined",
-    createdAt: "2026-10-10T11:00:00",
-  },
-  {
-    id: "req4",
-    senderId: "maya",
-    receiverId: "tyler",
-    message: "We lived in the same building on Zelzah.",
-    status: "pending",
-    createdAt: "2026-10-18T10:00:00",
-  },
-  {
-    id: "req5",
-    senderId: "maya",
-    receiverId: "sofia",
-    message: "Roommates last spring semester?",
-    status: "pending",
-    createdAt: "2026-10-19T09:00:00",
-  },
 ];
 
 export const connections: Connection[] = [
@@ -195,12 +162,6 @@ export const connections: Connection[] = [
     confirmedBy: ["maya", "alex"],
     status: "review_open",
     reviewDeadline: "2026-10-21T23:59:00",
-  },
-  {
-    id: "conn2",
-    userIds: ["maya", "kayla"],
-    confirmedBy: ["kayla"],
-    status: "awaiting_confirmation",
   },
 ];
 
@@ -222,6 +183,41 @@ export const reviews: Review[] = [
     submittedAt: "2026-10-14T16:20:00",
     publishedAt: "2026-10-15T16:20:00",
   },
+  // Reviews other people wrote about Maya (shown under "About me").
+  {
+    id: "rev2",
+    connectionId: "conn-daniel",
+    reviewerId: "daniel",
+    reviewedUserId: "maya",
+    cleanlinessScore: 4.5,
+    communicationScore: 4.0,
+    noiseScore: 4.0,
+    paymentScore: 5.0,
+    privacyScore: 4.5,
+    responsibilityScore: 4.5,
+    positiveComment: "Maya kept shared spaces spotless and always paid rent early.",
+    futureRoommateComment: "Yes. Easy to talk to and very respectful of quiet hours.",
+    status: "published",
+    submittedAt: "2026-10-17T11:05:00",
+    publishedAt: "2026-10-18T11:05:00",
+  },
+  {
+    id: "rev3",
+    connectionId: "conn-mia",
+    reviewerId: "mia",
+    reviewedUserId: "maya",
+    cleanlinessScore: 4.0,
+    communicationScore: 4.5,
+    noiseScore: 3.5,
+    paymentScore: 4.5,
+    privacyScore: 4.0,
+    responsibilityScore: 4.5,
+    positiveComment: "Clear communication about chores and guests.",
+    futureRoommateComment: "Yes, I would.",
+    status: "published",
+    submittedAt: "2026-10-06T09:40:00",
+    publishedAt: "2026-10-08T09:40:00",
+  },
 ];
 
 export const pendingReviews: PendingReview[] = [
@@ -230,13 +226,21 @@ export const pendingReviews: PendingReview[] = [
     roommate: users.alex,
     daysLeft: 4,
     submittedCount: 1,
+    youSubmitted: false, // Alex already wrote theirs; Maya has not
+  },
+  {
+    connectionId: "conn2",
+    roommate: users.kayla,
+    daysLeft: 5,
+    submittedCount: 1,
+    youSubmitted: true, // Maya wrote hers; waiting on Kayla
   },
 ];
 
 export const dashboardStats = {
   profileViews: { value: 24, note: "+8 this week" },
   pendingRequests: { value: 2, note: "1 needs your reply" },
-  publishedReviews: { value: 3, note: "From verified roommates" },
+  publishedReviews: { value: 2, note: "From verified roommates" },
   trustScore: { value: 4.8, note: "Based on your history" },
 };
 
