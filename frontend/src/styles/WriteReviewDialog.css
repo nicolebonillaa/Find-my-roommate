@@ -1,0 +1,241 @@
+
+/* Write review popup */
+
+.write-review-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.write-review-dialog {
+  width: min(650px, 100%);
+  max-height: 90dvh;
+  overflow: auto;
+  padding: 25px;
+  background: var(--card);
+  border-radius: 20px;
+  box-shadow: 0 25px 70px rgba(15, 23, 42, 0.25);
+}
+
+.write-review-dialog__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.write-review-dialog__header h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  color: var(--text);
+}
+
+.write-review-dialog__header p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.write-review-dialog__close {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+/* Roommate details */
+
+.write-review-dialog__roommate {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--primary-soft);
+}
+
+.write-review-dialog__roommate strong {
+  font-size: 14px;
+}
+
+.write-review-dialog__roommate p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* Six rating categories */
+
+.write-review-dialog form h3 {
+  font-size: 14px;
+  margin: 18px 0 12px;
+}
+
+.write-review-dialog__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.write-review-dialog__rating {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.write-review-dialog__rating-label {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.write-review-dialog__rating-label span {
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.write-review-dialog__stars {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 6px;
+}
+
+.write-review-dialog__stars button {
+  padding: 0 3px;
+  border: 0;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 26px;
+  cursor: pointer;
+}
+
+.write-review-dialog__stars button.is-selected {
+  color: #f2a33a;
+}
+
+.write-review-dialog__stars button:hover {
+  color: #e99a28;
+}
+
+/* Written feedback */
+
+.write-review-dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.write-review-dialog__field strong {
+  font-size: 12px;
+}
+
+.write-review-dialog__field textarea {
+  min-height: 82px;
+  width: 100%;
+  padding: 12px;
+  resize: vertical;
+  font: inherit;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+}
+
+.write-review-dialog__field textarea:focus {
+  outline: 2px solid var(--primary-soft);
+  border-color: var(--primary);
+}
+
+/* Privacy reminder */
+
+.write-review-dialog__privacy {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  margin: 16px 0;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.write-review-dialog__privacy svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.write-review-dialog__error {
+  margin: 12px 0;
+  color: #b91c1c;
+  font-size: 12px;
+}
+
+/* Popup buttons */
+
+.write-review-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.write-review-dialog__actions button {
+  padding: 11px 15px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.write-review-dialog__cancel {
+  background: #fff;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.write-review-dialog__submit {
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  color: #fff;
+}
+
+.write-review-dialog__submit:hover {
+  background: var(--primary-dark);
+}
+
+.write-review-dialog button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .write-review-dialog {
+    padding: 18px;
+  }
+
+  .write-review-dialog__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .write-review-dialog__actions {
+    flex-wrap: wrap;
+  }
+}

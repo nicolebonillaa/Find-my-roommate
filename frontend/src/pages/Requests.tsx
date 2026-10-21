@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Clock3 } from "lucide-react";
@@ -17,9 +16,6 @@ import {
   getDaysRemaining,
   getOtherRoommate,
   respondToRequest,
-  simulateOtherConfirmation,
-  simulateSentAccepted,
-  simulateSentDeclined,
   useRequestData,
 } from "../services/api";
 
@@ -507,52 +503,6 @@ export default function Requests() {
           </Card>
         )}
       </div>
-
-      <p className="requests__demo">
-        Mockup only.{" "}
-        <button
-          type="button"
-          onClick={() =>
-            showToast(
-              simulateOtherConfirmation()
-                ? "Other person confirmed"
-                : "No confirmation is waiting."
-            )
-          }
-        >
-          Other person confirms
-        </button>
-
-        {" · "}
-
-        <button
-          type="button"
-          onClick={() =>
-            showToast(
-              simulateSentAccepted()
-                ? "First sent request accepted"
-                : "No outgoing request is waiting."
-            )
-          }
-        >
-          First sent request is accepted
-        </button>
-
-        {" · "}
-
-        <button
-          type="button"
-          onClick={() =>
-            showToast(
-              simulateSentDeclined()
-                ? "Last sent request declined"
-                : "No outgoing request is waiting."
-            )
-          }
-        >
-          Last sent request is declined
-        </button>
-      </p>
 
       {toast && (
         <div className="requests__toast" role="status">

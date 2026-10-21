@@ -50,7 +50,7 @@ export default function Dashboard() {
       getStudents(),
     ]).then(([statsData, pendingData, activityData, studentsData]) => {
       setStats(statsData);
-      setPending(pendingData[0] ?? null); // the Dashboard shows the most urgent one
+      setPending(pendingData.find((p) => !p.youSubmitted) ?? null); // the one still waiting on you
       setActivity(activityData);
       setStudents(studentsData);
     });

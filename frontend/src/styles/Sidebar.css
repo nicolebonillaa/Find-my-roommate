@@ -18,17 +18,39 @@
 /* RoomieReport branding */
 
 .sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 40px;
 }
 
 .sidebar__brand h2 {
   font-size: 18px;
+  font-weight: 700;
   margin: 0;
+  white-space: nowrap;
 }
 
 .sidebar__brand p {
   font-size: 11px;
   color: #b6c5e8;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.sidebar__brand-text{
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 3px;
+}
+
+/* Logo image */
+.sidebar__logo {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 /* Workspace label */
