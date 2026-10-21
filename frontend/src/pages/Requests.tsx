@@ -39,6 +39,46 @@ export default function Requests() {
   const [confirmation, setConfirmation] =
     useState<Confirmation>(null);
   const [toast, setToast] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const busyRef = useRef(false);
+
+  // Guard immediately against double-clicks, then await the API result.
+  async function runAction(
+    key: string,
+    operation: () => boolean | void | Promise<boolean | void>,
+    successMessage: string
+  ) {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusyAction(key);
+    setActionError("");
+
+    try {
+      const result = await operation();
+      if (result === false) {
+        throw new Error("This request or connection is no longer available. Refresh and try again.");
+      }
+      showToast(successMessage);
+      setConfirmation(null);
+    } catch (error: unknown) {
+      const code = typeof error === "object" && error !== null && "code" in error
+        ? String(error.code) : "";
+      const message = code.includes("permission-denied")
+        ? "You don't have permission to make this change."
+        : code.includes("unauthenticated") || code.startsWith("auth/")
+          ? "Please sign in again to continue."
+          : code.includes("unavailable") || code.includes("network")
+            ? "Connection problem. Please try again."
+            : error instanceof Error && error.message
+              ? error.message
+              : "Couldn't save your change. Please try again.";
+      setActionError(message);
+    } finally {
+      busyRef.current = false;
+      setBusyAction(null);
+    }
+  }
 
   const toastTimer = useRef<number | undefined>(undefined);
 
@@ -116,21 +156,17 @@ export default function Requests() {
     }, 2600);
   }
 
-  async function handleAnswer(
+  function handleAnswer(
     request: RoommateRequest,
     action: "accepted" | "declined"
   ) {
-    try {
-      await respondToRequest(request.id, action);
-
-      showToast(
-        action === "accepted"
-          ? "Request accepted. Published reviews are available to authorized connections."
-          : "Request declined"
-      );
-    } catch {
-      showToast("Could not update the request.");
-    }
+    void runAction(
+      `request-${request.id}`,
+      () => respondToRequest(request.id, action),
+      action === "accepted"
+        ? "Request accepted. Published reviews are available to authorized connections."
+        : "Request declined"
+    );
   }
 
   function renderIncoming(request: RoommateRequest) {
@@ -170,20 +206,18 @@ export default function Requests() {
             <Button
               variant="secondary"
               size="sm"
-              onClick={() =>
-                handleAnswer(request, "declined")
-              }
+              disabled={busyAction !== null}
+              onClick={() => handleAnswer(request, "declined")}
             >
-              Decline
+              {busyAction === `request-${request.id}` ? "Saving..." : "Decline"}
             </Button>
 
             <Button
               size="sm"
-              onClick={() =>
-                handleAnswer(request, "accepted")
-              }
+              disabled={busyAction !== null}
+              onClick={() => handleAnswer(request, "accepted")}
             >
-              Accept
+              {busyAction === `request-${request.id}` ? "Saving..." : "Accept"}
             </Button>
           </div>
         ) : (
@@ -228,12 +262,14 @@ export default function Requests() {
           <button
             className="request-row__text-btn"
             type="button"
-            onClick={() => {
-              cancelOutgoingRequest(request.id);
-              showToast("Request cancelled");
-            }}
+            disabled={busyAction !== null}
+            onClick={() => void runAction(
+              `cancel-${request.id}`,
+              () => cancelOutgoingRequest(request.id),
+              "Request cancelled"
+            )}
           >
-            Cancel
+            {busyAction === `cancel-${request.id}` ? "Cancelling..." : "Cancel"}
           </button>
         </div>
       </div>
@@ -323,12 +359,8 @@ export default function Requests() {
             <button
               type="button"
               className="request-row__text-btn"
-              onClick={() =>
-                setConfirmation({
-                  id: connection.id,
-                  kind: "end",
-                })
-              }
+              disabled={busyAction !== null}
+              onClick={() => setConfirmation({ id: connection.id, kind: "end" })}
             >
               End connection
             </button>
@@ -353,12 +385,8 @@ export default function Requests() {
           ) : (
             <Button
               size="sm"
-              onClick={() =>
-                setConfirmation({
-                  id: connection.id,
-                  kind: "confirm",
-                })
-              }
+              disabled={busyAction !== null}
+              onClick={() => setConfirmation({ id: connection.id, kind: "confirm" })}
             >
               I lived with {first}
             </Button>
@@ -378,6 +406,7 @@ export default function Requests() {
             <Button
               size="sm"
               variant="secondary"
+              disabled={busyAction !== null}
               onClick={() => setConfirmation(null)}
             >
               Cancel
@@ -385,18 +414,16 @@ export default function Requests() {
 
             <Button
               size="sm"
-              onClick={() => {
-                confirmLivingTogether(connection.id);
-                setConfirmation(null);
-
-                showToast(
-                  themConfirmed
-                    ? "Both confirmed. Review window is open for 7 days."
-                    : "Confirmed. Waiting for them."
-                );
-              }}
+              disabled={busyAction !== null}
+              onClick={() => void runAction(
+                `confirm-${connection.id}`,
+                () => confirmLivingTogether(connection.id),
+                themConfirmed
+                  ? "Both confirmed. Review window is open for 7 days."
+                  : "Confirmed. Waiting for them."
+              )}
             >
-              Yes, we lived together
+              {busyAction === `confirm-${connection.id}` ? "Confirming..." : "Yes, we lived together"}
             </Button>
           </div>
         )}
@@ -413,6 +440,7 @@ export default function Requests() {
             <Button
               size="sm"
               variant="secondary"
+              disabled={busyAction !== null}
               onClick={() => setConfirmation(null)}
             >
               Keep
@@ -421,14 +449,14 @@ export default function Requests() {
             <button
               type="button"
               className="btn btn__sm requests__danger"
-              onClick={() => {
-                if (endRoommateConnection(connection.id)) {
-                  showToast("Connection ended");
-                }
-                setConfirmation(null);
-              }}
+              disabled={busyAction !== null}
+              onClick={() => void runAction(
+                `end-${connection.id}`,
+                () => endRoommateConnection(connection.id),
+                "Connection ended"
+              )}
             >
-              End connection
+              {busyAction === `end-${connection.id}` ? "Ending..." : "End connection"}
             </button>
           </div>
         )}
@@ -442,6 +470,13 @@ export default function Requests() {
         title="Roommate requests"
         subtitle="Accepting a request unlocks the other person's published roommate reviews."
       />
+
+      {actionError && (
+        <div className="requests__error" role="alert">
+          <span>{actionError}</span>
+          <button type="button" onClick={() => setActionError("")} aria-label="Dismiss error">×</button>
+        </div>
+      )}
 
       <div className="requests">
         <Card

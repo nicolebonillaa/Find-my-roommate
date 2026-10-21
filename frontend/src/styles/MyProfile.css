@@ -1,6 +1,4 @@
-/* =========================
-   Profile Layout
-========================= */
+/* Profile Layout */
 
 .profile-grid {
   display: grid;
@@ -15,9 +13,7 @@
   }
 }
 
-/* =========================
-   Profile Card
-========================= */
+/* Profile Card */
 
 .profile-card {
   background: var(--card);
@@ -30,12 +26,13 @@
   gap: var(--space-3);
 }
 
-.profile-card__name {
-  margin: 0;
-  color: var(--text);
+.profile-card__content .avatar__lg {
+  width: 76px;
+  height: 76px;
+  font-size: 24px;
 }
 
-.profile-card__area {
+.profile-card__name {
   margin: 0;
   color: var(--text);
 }
@@ -47,9 +44,7 @@
   white-space: normal;
 }
 
-/* =========================
-   Success Message
-========================= */
+/* Success Message */
 
 .profile-success {
   background: var(--green-bg);
@@ -59,9 +54,7 @@
   margin-bottom: var(--space-4);
 }
 
-/* =========================
-   Lifestyle Preferences
-========================= */
+/* Lifestyle Preferences*/
 
 .preferences-grid {
   display: grid;
@@ -98,9 +91,7 @@
   }
 }
 
-/* =========================
-   About Me
-========================= */
+/*About Me */
 
 .about-card p,
 .about-me {
@@ -108,9 +99,7 @@
   color: var(--text-muted);
 }
 
-/* =========================
-   Edit Profile Form
-========================= */
+/* Edit Profile Form */
 
 .edit-profile {
   display: flex;
@@ -124,8 +113,8 @@
   gap: var(--space-2);
 }
 
-.edit-profile__group label {
-  font-weight: 600;
+.edit-profile__group > label {
+  font-weight: 700;
   color: var(--text);
 }
 
@@ -144,10 +133,21 @@
   min-height: 120px;
 }
 
+.edit-profile input:focus-visible,
+.edit-profile textarea:focus-visible,
+.edit-profile select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
 .edit-profile__actions {
   display: flex;
   gap: var(--space-3);
   margin-top: var(--space-2);
+}
+
+.edit-profile__actions .btn {
+  min-height: 42px;
 }
 
 .edit-profile__error {
@@ -161,12 +161,7 @@
   font-weight: 600;
 }
 
-.edit-profile__note {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-/* Better spacing for preference selects */
+/* Preference Select Fields*/
 
 .edit-profile .preferences-grid > div {
   display: flex;

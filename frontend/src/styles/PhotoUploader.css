@@ -1,27 +1,387 @@
-.photo-uploader__modal {
+/* Editable Profile Avatar */
+
+.profile-photo-field {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #f9faff;
+  padding: 15px 18px;
+}
+
+.profile-photo-field__edit {
+  position: relative;
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.profile-photo-field__edit:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 4px;
+}
+
+.profile-photo-field__circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  color: white;
+  font-size: 27px;
+  font-weight: 800;
+  overflow: hidden;
+  border: 4px solid white;
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.profile-photo-field__circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.profile-photo-field__pencil {
+  position: absolute;
+  right: 0;
+  bottom: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 29px;
+  height: 29px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  border: 3px solid white;
+  box-shadow: 0 2px 7px #1a24552b;
+}
+
+.profile-photo-field__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.profile-photo-field__copy strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.profile-photo-field__copy span,
+.profile-photo-field__copy small {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Avatar Editor Overlay */
+
+.avatar-editor__overlay {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 200;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+  background: rgba(18, 29, 57, 0.53);
+  backdrop-filter: blur(3px);
+}
+
+.avatar-editor {
+  width: min(100%, 520px);
+  max-height: min(92vh, 850px);
+  overflow-y: auto;
+
+  background: var(--card);
+  border-radius: 20px;
+  box-shadow: 0 22px 70px #12214444;
+  color: var(--text);
+}
+
+/* Popup Header */
+
+.avatar-editor__header,
+.avatar-editor__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 24px;
+}
+
+.avatar-editor__header {
+  border-bottom: 1px solid var(--border);
+}
+
+.avatar-editor__header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.avatar-editor__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 34px;
+  height: 34px;
+
+  background: #f0f3fa;
+  border: 0;
+  border-radius: 9px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.avatar-editor__body {
+  padding: 22px 24px;
+}
+
+/* Photo / Initials Tabs */
+
+.avatar-editor__tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+
+  padding: 4px;
+  border-radius: 12px;
+  background: #f0f3fb;
+}
+
+.avatar-editor__tabs button {
+  border: 0;
+  background: transparent;
+  border-radius: 9px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 9px;
+
+  min-height: 42px;
+  color: var(--text-muted);
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.avatar-editor__tabs button.is-active {
+  color: var(--primary);
+  background: white;
+  box-shadow: 0 2px 7px #22335a15;
+}
+
+/* Initials Avatar Preview*/
+
+.avatar-editor__initials-tab {
+  padding: 22px 0 5px;
+
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 16px;
-  background: rgba(20, 26, 51, 0.7);
 }
 
-.photo-uploader__crop {
-  position: relative;
-  width: min(90vw, 400px);
-  height: min(90vw, 400px);
-}
+.avatar-editor__initials-preview {
+  width: 124px;
+  height: 124px;
+  border-radius: 50%;
 
-.photo-uploader__actions {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  justify-content: center;
+
+  color: white;
+  font-size: 38px;
+  font-weight: 800;
+
+  border: 6px solid white;
+  box-shadow: 0 0 0 1px var(--border);
 }
 
-.photo-uploader__error {
+.avatar-editor__section-label {
+  margin: 25px 0 14px;
+  align-self: flex-start;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* Avatar Color Circles */
+
+.avatar-editor__colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-self: flex-start;
+  align-items: center;
+}
+
+.avatar-editor__swatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 35px;
+  height: 35px;
+  padding: 0;
+
+  border: 3px solid white;
+  border-radius: 50%;
+  color: white;
+  box-shadow: 0 0 0 1px var(--border);
+
+  cursor: pointer;
+}
+
+.avatar-editor__swatch.is-selected {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Custom color picker: circular rainbow button */
+.avatar-editor__swatch--custom {
+  background: conic-gradient(
+    #e9769c,
+    #edb657,
+    #54c79a,
+    #5c9af0,
+    #b77af0,
+    #e9769c
+  );
+
+  color: white;
+}
+
+/* Keep native inputs accessible through buttons */
+.avatar-editor__hidden-color,
+.avatar-editor__file {
+  position: absolute;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Footer Buttons*/
+
+.avatar-editor__footer {
+  border-top: 1px solid var(--border);
+  justify-content: flex-end;
+}
+
+/* Photo Upload */
+
+.avatar-editor__photo-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 13px;
+  padding-top: 24px;
+}
+
+.avatar-editor__upload-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 12px 0;
+}
+
+.avatar-editor__upload-empty strong {
+  font-size: 15px;
+}
+
+.avatar-editor__upload-empty p,
+.avatar-editor__photo-tab small {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.avatar-editor__upload-icon {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: #ecf1ff;
+  color: var(--primary);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-editor__current-photo {
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Photo Cropper */
+
+.avatar-editor__crop {
+  position: relative;
+
+  width: min(100%, 380px);
+  height: 290px;
+
+  background: #19233a;
+  border-radius: 13px;
+  overflow: hidden;
+}
+
+.avatar-editor__zoom {
+  width: min(100%, 380px);
+
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.avatar-editor__zoom input {
+  flex: 1;
+  accent-color: var(--primary);
+}
+
+.avatar-editor__error {
   color: var(--danger);
   font-size: 13px;
+  margin: 12px 0 0;
+}
+
+/* Mobile */
+
+@media (max-width: 600px) {
+  .profile-photo-field {
+    padding: 12px;
+    gap: 13px;
+  }
+
+  .profile-photo-field__circle {
+    width: 70px;
+    height: 70px;
+  }
+
+  .avatar-editor__body,
+  .avatar-editor__header,
+  .avatar-editor__footer {
+    padding: 16px;
+  }
 }

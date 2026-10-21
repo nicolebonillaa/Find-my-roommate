@@ -111,3 +111,56 @@
   font-size: 13px;
   color: var(--text-muted);
 }
+
+/* Dashboard loading and error states */
+
+.dashboard__feedback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+
+  padding: 48px 20px;
+  text-align: center;
+}
+
+.dashboard__feedback h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.dashboard__feedback p {
+  max-width: 420px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.dashboard__feedback .btn {
+  margin-top: 8px;
+}
+
+.dashboard__feedback-icon,
+.dashboard__loading-icon {
+  color: var(--primary);
+}
+
+.dashboard__loading-icon {
+  animation: dashboard-spin 1.4s linear infinite;
+}
+
+@keyframes dashboard-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard__loading-icon {
+    animation: none;
+  }
+}
