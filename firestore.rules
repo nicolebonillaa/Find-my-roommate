@@ -1,0 +1,170 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function verifiedCSUN() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.matches('^[^@]+@csun\\.edu$');
+    }
+
+    function ownUser(userId) {
+      return verifiedCSUN()
+        && request.auth.uid == userId;
+    }
+
+    function connectionDoc(connectionId) {
+      return get(
+        /databases/$(database)/documents/connections/$(connectionId)
+      );
+    }
+
+    function connectionMember(connectionId) {
+      return verifiedCSUN()
+        && request.auth.uid in connectionDoc(connectionId).data.userIds;
+    }
+
+    function reviewDeadlinePassed(connectionId) {
+      return connectionDoc(connectionId).data.reviewDeadline != null
+        && request.time >= connectionDoc(connectionId).data.reviewDeadline;
+    }
+
+    match /users/{userId} {
+      allow read: if ownUser(userId);
+
+      allow create, update: if ownUser(userId)
+        && request.resource.data.id == request.auth.uid
+        && request.resource.data.email == request.auth.token.email;
+
+      allow delete: if false;
+    }
+
+    match /profiles/{userId} {
+      allow read: if verifiedCSUN();
+
+      allow create, update: if ownUser(userId)
+        && request.resource.data.userId == request.auth.uid;
+
+      allow delete: if false;
+    }
+
+    match /requests/{requestId} {
+      allow create: if verifiedCSUN()
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.senderId != request.resource.data.receiverId
+        && request.resource.data.status == "pending";
+
+      allow read: if verifiedCSUN()
+        && (
+          resource.data.senderId == request.auth.uid ||
+          resource.data.receiverId == request.auth.uid
+        );
+
+      allow update: if verifiedCSUN()
+        && request.resource.data.senderId == resource.data.senderId
+        && request.resource.data.receiverId == resource.data.receiverId
+        && (
+          (
+            resource.data.receiverId == request.auth.uid
+            && request.resource.data.status in [
+              "accepted",
+              "declined"
+            ]
+          )
+          ||
+          (
+            resource.data.senderId == request.auth.uid
+            && request.resource.data.status == "ended"
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    match /connections/{connectionId} {
+      allow read: if verifiedCSUN()
+        && request.auth.uid in resource.data.userIds;
+
+      allow create: if verifiedCSUN()
+        && request.resource.data.userIds.size() == 2
+        && request.auth.uid in request.resource.data.userIds;
+
+      allow update: if verifiedCSUN()
+        && request.auth.uid in resource.data.userIds
+        && request.resource.data.userIds == resource.data.userIds;
+
+      allow delete: if false;
+    }
+
+    match /reviews/{reviewId} {
+      allow create: if connectionMember(
+          request.resource.data.connectionId
+        )
+        && request.resource.data.reviewerId == request.auth.uid
+        && request.resource.data.reviewedUserId != request.auth.uid
+        && request.resource.data.status == "submitted"
+        && connectionDoc(
+          request.resource.data.connectionId
+        ).data.status == "review_open"
+        && request.time < connectionDoc(
+          request.resource.data.connectionId
+        ).data.reviewDeadline
+        && request.resource.data.reviewedUserId
+          in connectionDoc(
+            request.resource.data.connectionId
+          ).data.userIds;
+
+      allow read: if connectionMember(
+          resource.data.connectionId
+        )
+        && (
+          resource.data.reviewerId == request.auth.uid
+          ||
+          (
+            resource.data.status == "submitted"
+            && (
+              exists(
+                /databases/$(database)/documents/reviewReveals/$(resource.data.connectionId)
+              )
+              ||
+              reviewDeadlinePassed(resource.data.connectionId)
+            )
+          )
+        );
+
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    match /reviewReveals/{connectionId} {
+      allow read: if connectionMember(connectionId);
+
+      allow create: if connectionMember(connectionId)
+        && request.resource.data.connectionId == connectionId
+        && request.resource.data.otherReviewerId != request.auth.uid
+        && request.resource.data.otherReviewerId
+          in connectionDoc(connectionId).data.userIds
+        && getAfter(
+          /databases/$(database)/documents/reviews/$(connectionId + "_" + request.auth.uid)
+        ).data.status == "submitted"
+        && get(
+          /databases/$(database)/documents/reviews/$(connectionId + "_" + request.resource.data.otherReviewerId)
+        ).data.status == "submitted";
+
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    match /reports/{reportId} {
+      allow create: if verifiedCSUN()
+        && request.resource.data.reporterId == request.auth.uid;
+
+      allow read, update, delete: if false;
+    }
+  }
+}
