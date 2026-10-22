@@ -1,3 +1,4 @@
+
 .sidebar {
   width: 220px;
   height: 100vh;
@@ -13,7 +14,6 @@
   display: flex;
   flex-direction: column;
 }
-
 
 /* RoomieReport branding */
 
@@ -38,7 +38,7 @@
   white-space: nowrap;
 }
 
-.sidebar__brand-text{
+.sidebar__brand-text {
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -46,6 +46,7 @@
 }
 
 /* Logo image */
+
 .sidebar__logo {
   width: 36px;
   height: 36px;
@@ -79,6 +80,7 @@
   text-decoration: none;
   border-radius: 10px;
   font-size: 14px;
+  transition: background 0.2s ease;
 }
 
 .sidebar__nav a:hover {
@@ -88,6 +90,11 @@
 .sidebar__nav a.active {
   background: #344574;
   font-weight: 700;
+}
+
+.sidebar__nav a:focus-visible {
+  outline: 2px solid #90baff;
+  outline-offset: 2px;
 }
 
 /* Bottom user section */
@@ -115,20 +122,51 @@
   font-family: inherit;
 }
 
-/* Avatar */
+/* Profile avatar */
 
 .sidebar__avatar {
   width: 34px;
   height: 34px;
   min-width: 34px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: linear-gradient(135deg, #f7a35c, #e8795f);
+  background: transparent;
+  overflow: hidden;
+  padding: 0;
+}
+
+/* Shared Avatar component */
+
+.sidebar__avatar .avatar {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
   color: white;
   font-size: 12px;
   font-weight: 700;
+  line-height: 1;
+}
+
+/* Uploaded profile picture */
+
+.sidebar__avatar .avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 50%;
 }
 
 /* Name and student label */
@@ -146,11 +184,14 @@
   font-weight: 700;
   color: white;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sidebar__user-info span {
   font-size: 10px;
   color: #cbd8f5;
+  line-height: 1.3;
 }
 
 .sidebar__user-toggle > svg {
@@ -198,8 +239,18 @@
 }
 
 /* Keyboard accessibility */
+
 .sidebar__user-toggle:focus-visible,
 .sidebar__signout:focus-visible {
   outline: 2px solid #90baff;
   outline-offset: 2px;
+}
+
+/* Reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar__nav a,
+  .sidebar__signout {
+    transition: none;
+  }
 }

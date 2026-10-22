@@ -367,12 +367,18 @@ export default function Requests() {
           )}
 
           {reviewOpen ? (
-            <Button
-              size="sm"
-              to={`/reviews/write/${connection.id}`}
-            >
-              Write review
-            </Button>
+            getDaysRemaining(connection.reviewDeadline) > 0 ? (
+              <Button
+                size="sm"
+                to={`/reviews/write/${connection.id}`}
+              >
+                Write review
+              </Button>
+      ) : (
+    <Button size="sm" variant="secondary" disabled>
+      Review window ended
+    </Button>
+  )
           ) : meConfirmed ? (
             <Button
               size="sm"

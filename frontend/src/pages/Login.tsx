@@ -1,6 +1,7 @@
+
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
 import {
   FieldError,
@@ -12,6 +13,8 @@ type Errors = Record<string, string>;
 const csunEmail = /^[^\s@]+@my\.csun\.edu$/i;
 
 export default function Login() {
+  const navigate = useNavigate();
+
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginErrors, setLoginErrors] = useState<Errors>({});
@@ -28,6 +31,8 @@ export default function Login() {
 
   function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (loginPending) return;
 
     const errors: Errors = {};
 
@@ -46,17 +51,21 @@ export default function Login() {
 
     if (Object.keys(errors).length > 0) return;
 
-    // Frontend prototype only.
-    // Firebase Authentication will be connected later.
+    // Temporary demo login until Firebase is connected.
     setLoginPending(true);
     setLoginNotice("");
 
+    window.clearTimeout(timeoutRef.current);
+
     timeoutRef.current = window.setTimeout(() => {
-      setLoginPending(false);
-      setLoginNotice(
-        "Demo only: Firebase sign-in is not connected yet."
+      sessionStorage.setItem(
+        "roomiereport-demo-session",
+        "true"
       );
-    }, 1200);
+
+      setLoginPending(false);
+      navigate("/dashboard", { replace: true });
+    }, 600);
   }
 
   return (
@@ -74,7 +83,7 @@ export default function Login() {
         noValidate
         onSubmit={handleLogin}
       >
-        {/* CSUN Email */}
+        {/* CSUN email */}
         <div
           className={`rr-field${
             loginErrors.email ? " has-error" : ""
@@ -92,10 +101,11 @@ export default function Login() {
             placeholder="maya.rivera@my.csun.edu"
             value={loginEmail}
             aria-invalid={!!loginErrors.email}
-            onChange={(e) => {
-              setLoginEmail(e.target.value);
-              setLoginErrors((s) => ({
-                ...s,
+            onChange={(event) => {
+              setLoginEmail(event.target.value);
+
+              setLoginErrors((current) => ({
+                ...current,
                 email: "",
               }));
             }}
@@ -120,8 +130,9 @@ export default function Login() {
               href="#"
               onClick={(event) => {
                 event.preventDefault();
+
                 setLoginNotice(
-                  "Password reset requires Firebase Authentication."
+                  "Password reset will be available once Firebase Authentication is connected."
                 );
               }}
             >
@@ -137,35 +148,36 @@ export default function Login() {
             invalid={!!loginErrors.password}
             onChange={(value) => {
               setLoginPassword(value);
-              setLoginErrors((s) => ({
-                ...s,
+
+              setLoginErrors((current) => ({
+                ...current,
                 password: "",
               }));
             }}
           />
 
-          <FieldError
-            message={loginErrors.password}
-          />
+          <FieldError message={loginErrors.password} />
         </div>
 
-        {/* Login Button */}
+        {/* Log in button */}
         <button
           className="rr-auth__btn rr-auth__btn--primary"
           type="submit"
           disabled={loginPending}
         >
-          {loginPending ? "Signing in…" : "Log in"}
+          {loginPending ? "Signing in..." : "Log in"}
         </button>
 
-        {/* Demo Notice */}
         {loginNotice && (
-          <p className="rr-auth__notice" role="status">
+          <p
+            className="rr-auth__notice"
+            role="status"
+          >
             {loginNotice}
           </p>
         )}
 
-        {/* Signup Link */}
+        {/* Create account link */}
         <p className="rr-auth__fine">
           New to RoomieReport?{" "}
           <Link to="/signup">

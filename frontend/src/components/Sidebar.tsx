@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+
 import {
   House,
   Search,
@@ -13,29 +14,29 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "../auth/AuthProvider";
+import Avatar from "./Avatar";
+
 import roommateLogo from "../assets/roomiereport-logo-white.svg";
+
 import "../styles/Sidebar.css";
 
 export default function Sidebar() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+
   const navigate = useNavigate();
 
   const [menuOpen, setMenuOpen] = useState(false);
 
   function handleSignOut() {
+    // Clear the temporary demo session.
+    sessionStorage.removeItem(
+      "roomiereport-demo-session"
+    );
+
     setMenuOpen(false);
 
-    // Frontend demonstration only.
-    // Replace with Firebase signOut() when authentication is ready.
-    navigate("/login");
+    navigate("/login", { replace: true });
   }
-
-  const initials = user?.name
-    .split(" ")
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
 
   return (
     <aside className="sidebar">
@@ -47,17 +48,20 @@ export default function Sidebar() {
           className="sidebar__logo"
         />
 
-  <div className="sidebar__brand-text">
-    <h2>RoomieReport</h2>
-    <p>CSUN student community</p>
-  </div>
-</div>
+        <div className="sidebar__brand-text">
+          <h2>RoomieReport</h2>
+          <p>CSUN student community</p>
+        </div>
+      </div>
 
-      {/* Main navigation */}
-      <p className="sidebar__label">WORKSPACE</p>
+      {/* Workspace label */}
+      <p className="sidebar__label">
+        WORKSPACE
+      </p>
 
+      {/* Navigation links */}
       <nav className="sidebar__nav">
-        <NavLink to="/" end>
+        <NavLink to="/dashboard">
           <House size={18} />
           Dashboard
         </NavLink>
@@ -89,19 +93,31 @@ export default function Sidebar() {
           <button
             type="button"
             className="sidebar__user-toggle"
-            onClick={() => setMenuOpen((open) => !open)}
+            onClick={() =>
+              setMenuOpen((open) => !open)
+            }
             aria-expanded={menuOpen}
             aria-controls="sidebar-user-menu"
           >
-            {/* User avatar */}
+            {/* Profile avatar */}
             <span className="sidebar__avatar">
-              {initials}
+              <Avatar
+                user={profile?.user ?? user}
+                photoUrl={profile?.photoUrl}
+                size="sm"
+                round
+              />
             </span>
 
             {/* User information */}
             <span className="sidebar__user-info">
-              <strong>{user.name}</strong>
-              <span>Verified CSUN student</span>
+              <strong>
+                {profile?.user.name ?? user.name}
+              </strong>
+
+              <span>
+                Verified CSUN student
+              </span>
             </span>
 
             {/* Dropdown arrow */}
