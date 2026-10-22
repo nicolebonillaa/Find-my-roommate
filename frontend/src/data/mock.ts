@@ -161,7 +161,9 @@ export const connections: Connection[] = [
     userIds: ["maya", "alex"],
     confirmedBy: ["maya", "alex"],
     status: "review_open",
-    reviewDeadline: "2026-10-21T23:59:00",
+    reviewDeadline: new Date(
+      Date.now() + 7 * 24 * 60 * 60 * 1000
+    ).toISOString(),
   },
 ];
 

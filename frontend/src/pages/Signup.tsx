@@ -2,6 +2,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+
 import AuthLayout from "../components/AuthLayout";
 import {
   FieldError,
@@ -44,11 +45,11 @@ export default function Signup() {
 
     if (Object.keys(errors).length > 0) return;
 
-    // Frontend prototype only.
-    // Firebase account creation and verification
-    // will be connected by the authentication team.
+    // Firebase account creation will be connected later.
     navigate("/verify", {
-      state: { email: signupEmail.trim() },
+      state: {
+        email: signupEmail.trim(),
+      },
     });
   }
 
@@ -59,8 +60,7 @@ export default function Signup() {
       </h1>
 
       <p className="rr-auth__sub">
-        Use your CSUN email so we can confirm you're a
-        student.
+        Use your CSUN email so we can confirm you're a student.
       </p>
 
       <form
@@ -68,6 +68,7 @@ export default function Signup() {
         noValidate
         onSubmit={handleSignup}
       >
+        {/* Full name */}
         <div
           className={`rr-field${
             signupErrors.name ? " has-error" : ""
@@ -80,14 +81,16 @@ export default function Signup() {
           <input
             id="rr-signup-name"
             className="rr-input"
+            type="text"
             autoComplete="name"
             placeholder="Maya Rivera"
             value={name}
             aria-invalid={!!signupErrors.name}
-            onChange={(e) => {
-              setName(e.target.value);
-              setSignupErrors((s) => ({
-                ...s,
+            onChange={(event) => {
+              setName(event.target.value);
+
+              setSignupErrors((current) => ({
+                ...current,
                 name: "",
               }));
             }}
@@ -96,6 +99,7 @@ export default function Signup() {
           <FieldError message={signupErrors.name} />
         </div>
 
+        {/* CSUN email */}
         <div
           className={`rr-field${
             signupErrors.email ? " has-error" : ""
@@ -113,10 +117,11 @@ export default function Signup() {
             placeholder="maya.rivera@my.csun.edu"
             value={signupEmail}
             aria-invalid={!!signupErrors.email}
-            onChange={(e) => {
-              setSignupEmail(e.target.value);
-              setSignupErrors((s) => ({
-                ...s,
+            onChange={(event) => {
+              setSignupEmail(event.target.value);
+
+              setSignupErrors((current) => ({
+                ...current,
                 email: "",
               }));
             }}
@@ -125,6 +130,7 @@ export default function Signup() {
           <FieldError message={signupErrors.email} />
         </div>
 
+        {/* Password */}
         <div
           className={`rr-field${
             signupErrors.password ? " has-error" : ""
@@ -142,18 +148,18 @@ export default function Signup() {
             invalid={!!signupErrors.password}
             onChange={(value) => {
               setSignupPassword(value);
-              setSignupErrors((s) => ({
-                ...s,
+
+              setSignupErrors((current) => ({
+                ...current,
                 password: "",
               }));
             }}
           />
 
-          <FieldError
-            message={signupErrors.password}
-          />
+          <FieldError message={signupErrors.password} />
         </div>
 
+        {/* Create account button */}
         <button
           className="rr-auth__btn rr-auth__btn--primary"
           type="submit"
@@ -162,8 +168,7 @@ export default function Signup() {
         </button>
 
         <p className="rr-auth__fine">
-          We'll email you a link to confirm your CSUN
-          address.
+          We'll email you a link to confirm your CSUN address.
         </p>
       </form>
     </AuthLayout>

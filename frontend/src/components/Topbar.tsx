@@ -61,7 +61,7 @@ function loadIds(key: string): string[] {
 }
 
 export default function Topbar() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { requests, connections } = useRequestData();
 
   const navigate = useNavigate();
@@ -431,10 +431,15 @@ export default function Topbar() {
         )}
       </div>
 
-      {/* profile avatar */}
-      {user && (
-        <Avatar user={user} size="sm" round />
-      )}
+    {/* Profile avatar - synchronized with My Profile */}
+    {user && (
+      <Avatar
+        user={profile?.user ?? user}
+        photoUrl={profile?.photoUrl}
+        size="sm"
+        round
+      />
+    )}
     </div>
   );
 }

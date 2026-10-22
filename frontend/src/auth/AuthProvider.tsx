@@ -1,30 +1,78 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import type { ReactNode } from "react";
-import { getCurrentUser } from "../services/api";
-import type { User } from "../types";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
-// Mock auth for now. Swap with Firebase Auth (onAuthStateChanged)
-// once the backend lead has it ready. Components only use useAuth().
+import type { ReactNode } from "react";
+import type { Student, User } from "../types";
+
+import { getCurrentUser } from "../services/api";
+import { myProfile } from "../data/mock";
+
 interface AuthValue {
   user: User | null;
+  profile: Student | null;
   loading: boolean;
+  updateProfile: (profile: Student) => void;
 }
 
-const AuthContext = createContext<AuthValue>({ user: null, loading: true });
+const AuthContext = createContext<AuthValue | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const [user, setUser] = useState<User | null>(null);
+
+  const [profile, setProfile] = useState<Student>(
+    myProfile
+  );
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getCurrentUser().then((u) => {
-      setUser(u);
-      setLoading(false);
-    });
+    let active = true;
+
+    getCurrentUser()
+      .then((currentUser) => {
+        if (!active) return;
+
+        setUser(currentUser);
+      })
+      .catch(() => {
+        if (!active) return;
+        setUser(null);
+      })
+      .finally(() => {
+        if (active) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
+  function updateProfile(updatedProfile: Student) {
+    setProfile(updatedProfile);
+
+    // Keep the shared user information synchronized.
+    setUser(updatedProfile.user);
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading,
+        updateProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -32,5 +80,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+
+  if (!context) {
+    throw new Error(
+      "useAuth must be used inside AuthProvider"
+    );
+  }
+
+  return context;
 }
