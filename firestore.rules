@@ -10,7 +10,9 @@ service cloud.firestore {
     function verifiedCSUN() {
       return signedIn()
         && request.auth.token.email_verified == true
-        && request.auth.token.email.matches('^[^@]+@csun\\.edu$');
+        && request.auth.token.email.matches(
+          '^[^@]+@my\\.csun\\.edu$'
+        );
     }
 
     function ownUser(userId) {
@@ -26,12 +28,104 @@ service cloud.firestore {
 
     function connectionMember(connectionId) {
       return verifiedCSUN()
-        && request.auth.uid in connectionDoc(connectionId).data.userIds;
+        && request.auth.uid in
+          connectionDoc(connectionId).data.userIds;
     }
 
     function reviewDeadlinePassed(connectionId) {
       return connectionDoc(connectionId).data.reviewDeadline != null
-        && request.time >= connectionDoc(connectionId).data.reviewDeadline;
+        && request.time >=
+          connectionDoc(connectionId).data.reviewDeadline;
+    }
+
+    function validScore(value) {
+      return value is int && value >= 1 && value <= 5;
+    }
+
+    function validReviewScores(scores) {
+      return scores.keys().hasAll([
+          "cleanlinessScore",
+          "communicationScore",
+          "noiseScore",
+          "paymentScore",
+          "privacyScore",
+          "responsibilityScore"
+        ])
+        && scores.keys().hasOnly([
+          "cleanlinessScore",
+          "communicationScore",
+          "noiseScore",
+          "paymentScore",
+          "privacyScore",
+          "responsibilityScore"
+        ])
+        && validScore(scores.cleanlinessScore)
+        && validScore(scores.communicationScore)
+        && validScore(scores.noiseScore)
+        && validScore(scores.paymentScore)
+        && validScore(scores.privacyScore)
+        && validScore(scores.responsibilityScore);
+    }
+
+    function validConnectionConfirmationUpdate() {
+      return request.auth.uid in resource.data.userIds
+        && resource.data.status == "awaiting_confirmation"
+        && request.resource.data.userIds == resource.data.userIds
+        && request.resource.data.confirmedBy.size()
+          >= resource.data.confirmedBy.size()
+        && request.resource.data.confirmedBy.size() <= 2
+        && request.auth.uid in request.resource.data.confirmedBy
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            "confirmedBy",
+            "status",
+            "reviewDeadline"
+          ])
+        && request.resource.data.status in [
+          "awaiting_confirmation",
+          "review_open"
+        ]
+        && (
+          request.resource.data.status == "awaiting_confirmation"
+          ||
+          (
+            request.resource.data.status == "review_open"
+            && request.resource.data.confirmedBy.size() == 2
+            && request.resource.data.reviewDeadline is timestamp
+            && resource.data.reviewDeadline == null
+          )
+        )
+        && (
+          request.resource.data.reviewDeadline
+            == resource.data.reviewDeadline
+          ||
+          (
+            resource.data.reviewDeadline == null
+            && request.resource.data.reviewDeadline is timestamp
+          )
+        );
+    }
+
+    function validConnectionEndUpdate() {
+      return request.auth.uid in resource.data.userIds
+        && request.resource.data.userIds == resource.data.userIds
+        && request.resource.data.endedBy == request.auth.uid
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            "endedBy",
+            "endedAt",
+            "status"
+          ])
+        && (
+          request.resource.data.status == resource.data.status
+          ||
+          (
+            resource.data.reviewDeadline == null
+            && request.resource.data.status == "closed"
+          )
+        );
     }
 
     match /users/{userId} {
@@ -39,7 +133,16 @@ service cloud.firestore {
 
       allow create, update: if ownUser(userId)
         && request.resource.data.id == request.auth.uid
-        && request.resource.data.email == request.auth.token.email;
+        && request.resource.data.email
+          == request.auth.token.email
+        && request.resource.data.keys().hasOnly([
+          "id",
+          "name",
+          "email",
+          "verificationStatus",
+          "createdAt",
+          "updatedAt"
+        ]);
 
       allow delete: if false;
     }
@@ -48,7 +151,19 @@ service cloud.firestore {
       allow read: if verifiedCSUN();
 
       allow create, update: if ownUser(userId)
-        && request.resource.data.userId == request.auth.uid;
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          "userId",
+          "displayName",
+          "bio",
+          "preferences",
+          "avatarColor",
+          "photoUrl",
+          "updatedAt"
+        ])
+        && request.resource.data.displayName is string
+        && request.resource.data.bio is string
+        && request.resource.data.bio.size() <= 2000;
 
       allow delete: if false;
     }
@@ -56,18 +171,31 @@ service cloud.firestore {
     match /requests/{requestId} {
       allow create: if verifiedCSUN()
         && request.resource.data.senderId == request.auth.uid
-        && request.resource.data.senderId != request.resource.data.receiverId
-        && request.resource.data.status == "pending";
+        && request.resource.data.senderId
+          != request.resource.data.receiverId
+        && request.resource.data.status == "pending"
+        && request.resource.data.message is string
+        && request.resource.data.message.size() <= 500;
 
       allow read: if verifiedCSUN()
         && (
-          resource.data.senderId == request.auth.uid ||
-          resource.data.receiverId == request.auth.uid
+          resource.data.senderId == request.auth.uid
+          || resource.data.receiverId == request.auth.uid
         );
 
       allow update: if verifiedCSUN()
-        && request.resource.data.senderId == resource.data.senderId
-        && request.resource.data.receiverId == resource.data.receiverId
+        && resource.data.status == "pending"
+        && request.resource.data.senderId
+          == resource.data.senderId
+        && request.resource.data.receiverId
+          == resource.data.receiverId
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            "status",
+            "respondedAt",
+            "endedAt"
+          ])
         && (
           (
             resource.data.receiverId == request.auth.uid
@@ -92,11 +220,29 @@ service cloud.firestore {
 
       allow create: if verifiedCSUN()
         && request.resource.data.userIds.size() == 2
-        && request.auth.uid in request.resource.data.userIds;
+        && request.auth.uid in request.resource.data.userIds
+        && request.resource.data.status
+          == "awaiting_confirmation"
+        && request.resource.data.confirmedBy.size() == 0
+        && request.resource.data.requestId is string
+        && getAfter(
+          /databases/$(database)/documents/requests/
+          $(request.resource.data.requestId)
+        ).data.status == "accepted"
+        && getAfter(
+          /databases/$(database)/documents/requests/
+          $(request.resource.data.requestId)
+        ).data.senderId in request.resource.data.userIds
+        && getAfter(
+          /databases/$(database)/documents/requests/
+          $(request.resource.data.requestId)
+        ).data.receiverId in request.resource.data.userIds;
 
       allow update: if verifiedCSUN()
-        && request.auth.uid in resource.data.userIds
-        && request.resource.data.userIds == resource.data.userIds;
+        && (
+          validConnectionConfirmationUpdate()
+          || validConnectionEndUpdate()
+        );
 
       allow delete: if false;
     }
@@ -105,9 +251,20 @@ service cloud.firestore {
       allow create: if connectionMember(
           request.resource.data.connectionId
         )
-        && request.resource.data.reviewerId == request.auth.uid
-        && request.resource.data.reviewedUserId != request.auth.uid
+        && reviewId
+          == request.resource.data.connectionId
+          + "_"
+          + request.resource.data.reviewerId
+        && request.resource.data.reviewerId
+          == request.auth.uid
+        && request.resource.data.reviewedUserId
+          != request.auth.uid
         && request.resource.data.status == "submitted"
+        && validReviewScores(request.resource.data.scores)
+        && request.resource.data.positiveComment is string
+        && request.resource.data.positiveComment.size() <= 1000
+        && request.resource.data.futureRoommateComment is string
+        && request.resource.data.futureRoommateComment.size() <= 1000
         && connectionDoc(
           request.resource.data.connectionId
         ).data.status == "review_open"
@@ -129,10 +286,13 @@ service cloud.firestore {
             resource.data.status == "submitted"
             && (
               exists(
-                /databases/$(database)/documents/reviewReveals/$(resource.data.connectionId)
+                /databases/$(database)/documents/reviewReveals/
+                $(resource.data.connectionId)
               )
               ||
-              reviewDeadlinePassed(resource.data.connectionId)
+              reviewDeadlinePassed(
+                resource.data.connectionId
+              )
             )
           )
         );
@@ -146,14 +306,18 @@ service cloud.firestore {
 
       allow create: if connectionMember(connectionId)
         && request.resource.data.connectionId == connectionId
-        && request.resource.data.otherReviewerId != request.auth.uid
+        && request.resource.data.reason == "both_submitted"
+        && request.resource.data.otherReviewerId
+          != request.auth.uid
         && request.resource.data.otherReviewerId
           in connectionDoc(connectionId).data.userIds
         && getAfter(
-          /databases/$(database)/documents/reviews/$(connectionId + "_" + request.auth.uid)
+          /databases/$(database)/documents/reviews/
+          $(connectionId + "_" + request.auth.uid)
         ).data.status == "submitted"
         && get(
-          /databases/$(database)/documents/reviews/$(connectionId + "_" + request.resource.data.otherReviewerId)
+          /databases/$(database)/documents/reviews/
+          $(connectionId + "_" + request.resource.data.otherReviewerId)
         ).data.status == "submitted";
 
       allow update: if false;
@@ -162,7 +326,8 @@ service cloud.firestore {
 
     match /reports/{reportId} {
       allow create: if verifiedCSUN()
-        && request.resource.data.reporterId == request.auth.uid;
+        && request.resource.data.reporterId
+          == request.auth.uid;
 
       allow read, update, delete: if false;
     }
