@@ -15,48 +15,74 @@ import {
 
 import { auth, db } from "../firebase";
 
-function validateCSUNEmail(email) {
-  const normalizedEmail = email.trim().toLowerCase();
+const CSUN_EMAIL_PATTERN = /^[^@\s]+@my\.csun\.edu$/;
 
-  if (!normalizedEmail.endsWith("@csun.edu")) {
-    throw new Error("Only verified CSUN student emails are allowed.");
+function validateCSUNEmail(email) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+
+  if (!CSUN_EMAIL_PATTERN.test(normalizedEmail)) {
+    throw new Error(
+      "Only verified CSUN student emails ending in @my.csun.edu are allowed."
+    );
   }
 
   return normalizedEmail;
 }
 
-export async function signUp({ name, email, password }) {
-  if (!name || name.trim().length < 2) {
+function validateName(name) {
+  const normalizedName = String(name || "").trim();
+
+  if (normalizedName.length < 2) {
     throw new Error("Please enter your full name.");
   }
 
+  return normalizedName;
+}
+
+function validatePassword(password) {
   if (!password || password.length < 6) {
     throw new Error("Password must contain at least 6 characters.");
   }
 
+  return password;
+}
+
+function requireSignedInUser() {
+  if (!auth.currentUser) {
+    throw new Error("You must be signed in.");
+  }
+
+  return auth.currentUser;
+}
+
+export async function signUp({ name, email, password }) {
+  const normalizedName = validateName(name);
   const normalizedEmail = validateCSUNEmail(email);
+  const validPassword = validatePassword(password);
 
   const account = await createUserWithEmailAndPassword(
     auth,
     normalizedEmail,
-    password
+    validPassword
   );
 
   await sendEmailVerification(account.user);
 
   return {
     user: account.user,
-    message: "Please verify your CSUN email before signing in.",
+    message:
+      "Your account was created. Please verify your @my.csun.edu email before signing in.",
   };
 }
 
 export async function signIn({ email, password }) {
   const normalizedEmail = validateCSUNEmail(email);
+  const validPassword = validatePassword(password);
 
   const account = await signInWithEmailAndPassword(
     auth,
     normalizedEmail,
-    password
+    validPassword
   );
 
   await reload(account.user);
@@ -66,7 +92,7 @@ export async function signIn({ email, password }) {
     await signOut(auth);
 
     throw new Error(
-      "Please verify your CSUN email before signing in."
+      "Please verify your @my.csun.edu email before signing in."
     );
   }
 
@@ -74,11 +100,7 @@ export async function signIn({ email, password }) {
 }
 
 export async function resendVerificationEmail() {
-  const user = auth.currentUser;
-
-  if (!user) {
-    throw new Error("No signed-in user was found.");
-  }
+  const user = requireSignedInUser();
 
   await sendEmailVerification(user);
 }
@@ -89,24 +111,29 @@ export async function createUserProfile({
   preferences = {},
   avatarColor = "#315C4C",
 }) {
-  const user = auth.currentUser;
-
-  if (!user) {
-    throw new Error("You must be signed in.");
-  }
+  const user = requireSignedInUser();
 
   await reload(user);
 
   if (!user.emailVerified) {
-    throw new Error("Your CSUN email must be verified first.");
+    throw new Error(
+      "Your @my.csun.edu email must be verified before creating a profile."
+    );
+  }
+
+  const normalizedName = validateName(name);
+  const normalizedBio = String(bio || "").trim();
+
+  if (normalizedBio.length > 2000) {
+    throw new Error("Your bio must be 2,000 characters or fewer.");
   }
 
   await setDoc(
     doc(db, "users", user.uid),
     {
       id: user.uid,
-      name: name.trim(),
-      email: user.email,
+      name: normalizedName,
+      email: user.email.toLowerCase(),
       verificationStatus: "verified",
       createdAt: serverTimestamp(),
     },
@@ -117,8 +144,8 @@ export async function createUserProfile({
     doc(db, "profiles", user.uid),
     {
       userId: user.uid,
-      displayName: name.trim(),
-      bio,
+      displayName: normalizedName,
+      bio: normalizedBio,
       preferences,
       avatarColor,
       updatedAt: serverTimestamp(),
