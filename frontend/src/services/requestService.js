@@ -1,3 +1,4 @@
+
 import {
   addDoc,
   collection,
@@ -42,7 +43,9 @@ export async function sendRoommateRequest(
   const trimmedMessage = String(message || "").trim();
 
   if (trimmedMessage.length > 500) {
-    throw new Error("Your message must be 500 characters or fewer.");
+    throw new Error(
+      "Your message must be 500 characters or fewer."
+    );
   }
 
   const outgoingQuery = query(
@@ -59,13 +62,16 @@ export async function sendRoommateRequest(
     where("status", "==", "pending")
   );
 
-  const [outgoingSnapshot, incomingSnapshot] = await Promise.all([
-    getDocs(outgoingQuery),
-    getDocs(incomingQuery),
-  ]);
+  const [outgoingSnapshot, incomingSnapshot] =
+    await Promise.all([
+      getDocs(outgoingQuery),
+      getDocs(incomingQuery),
+    ]);
 
   if (!outgoingSnapshot.empty) {
-    throw new Error("A pending request already exists.");
+    throw new Error(
+      "A pending request already exists."
+    );
   }
 
   if (!incomingSnapshot.empty) {
@@ -137,7 +143,11 @@ export async function respondToRequest(
     );
   }
 
-  const requestReference = doc(db, "requests", requestId);
+  const requestReference = doc(
+    db,
+    "requests",
+    requestId
+  );
 
   return runTransaction(db, async (transaction) => {
     const requestSnapshot = await transaction.get(
@@ -145,7 +155,9 @@ export async function respondToRequest(
     );
 
     if (!requestSnapshot.exists()) {
-      throw new Error("Roommate request was not found.");
+      throw new Error(
+        "Roommate request was not found."
+      );
     }
 
     const roommateRequest = requestSnapshot.data();
@@ -167,14 +179,21 @@ export async function respondToRequest(
       respondedAt: serverTimestamp(),
     };
 
-    transaction.update(requestReference, updateData);
+    /* Decline the request */
 
     if (response === "declined") {
+      transaction.update(
+        requestReference,
+        updateData
+      );
+
       return {
         requestId,
         status: response,
       };
     }
+
+    /* Check for an existing connection */
 
     const connectionId = createConnectionId(
       roommateRequest.senderId,
@@ -197,6 +216,15 @@ export async function respondToRequest(
       );
     }
 
+    /* Accept the request */
+
+    transaction.update(
+      requestReference,
+      updateData
+    );
+
+    /* Create the roommate connection */
+
     transaction.set(connectionReference, {
       id: connectionId,
       requestId,
@@ -217,14 +245,25 @@ export async function respondToRequest(
   });
 }
 
-export async function cancelOutgoingRequest(requestId) {
+export async function cancelOutgoingRequest(
+  requestId
+) {
   const user = requireUser();
 
-  const requestReference = doc(db, "requests", requestId);
-  const requestSnapshot = await getDoc(requestReference);
+  const requestReference = doc(
+    db,
+    "requests",
+    requestId
+  );
+
+  const requestSnapshot = await getDoc(
+    requestReference
+  );
 
   if (!requestSnapshot.exists()) {
-    throw new Error("Roommate request was not found.");
+    throw new Error(
+      "Roommate request was not found."
+    );
   }
 
   const roommateRequest = requestSnapshot.data();

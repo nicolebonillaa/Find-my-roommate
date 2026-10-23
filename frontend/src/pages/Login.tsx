@@ -1,12 +1,19 @@
 
-import { useEffect, useRef, useState } from "react";
-import type { FormEvent } from "react";
+import { useState } from "react";
+import type { FormEvent, MouseEvent } from "react";
+
 import { Link, useNavigate } from "react-router-dom";
+import { sendPasswordResetEmail } from "firebase/auth";
+
 import AuthLayout from "../components/AuthLayout";
 import {
   FieldError,
   PasswordInput,
 } from "../components/AuthFields";
+
+import { signIn } from "../services/authService";
+import { auth } from "../firebase";
+import { useAuth } from "../auth/AuthProvider";
 
 type Errors = Record<string, string>;
 
@@ -14,22 +21,25 @@ const csunEmail = /^[^\s@]+@my\.csun\.edu$/i;
 
 export default function Login() {
   const navigate = useNavigate();
+  const { refreshProfile } = useAuth();
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
-  const [loginErrors, setLoginErrors] = useState<Errors>({});
-  const [loginPending, setLoginPending] = useState(false);
-  const [loginNotice, setLoginNotice] = useState("");
 
-  const timeoutRef = useRef<number | undefined>(undefined);
+  const [loginErrors, setLoginErrors] =
+    useState<Errors>({});
 
-  useEffect(() => {
-    return () => {
-      window.clearTimeout(timeoutRef.current);
-    };
-  }, []);
+  const [loginPending, setLoginPending] =
+    useState(false);
 
-  function handleLogin(event: FormEvent<HTMLFormElement>) {
+  const [loginNotice, setLoginNotice] =
+    useState("");
+
+  /* Sign in with Firebase */
+
+  async function handleLogin(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
 
     if (loginPending) return;
@@ -51,21 +61,62 @@ export default function Login() {
 
     if (Object.keys(errors).length > 0) return;
 
-    // Temporary demo login until Firebase is connected.
     setLoginPending(true);
     setLoginNotice("");
 
-    window.clearTimeout(timeoutRef.current);
+    try {
+      await signIn({
+        email: loginEmail.trim(),
+        password: loginPassword,
+      });
 
-    timeoutRef.current = window.setTimeout(() => {
-      sessionStorage.setItem(
-        "roomiereport-demo-session",
-        "true"
+      await refreshProfile();
+
+      navigate("/dashboard", {
+        replace: true,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to sign in. Please try again.";
+
+      setLoginNotice(message);
+    } finally {
+      setLoginPending(false);
+    }
+  }
+
+  /* Send a password reset email */
+
+  async function handleReset(
+    event: MouseEvent<HTMLAnchorElement>
+  ) {
+    event.preventDefault();
+
+    if (!csunEmail.test(loginEmail.trim())) {
+      setLoginNotice(
+        "Enter your CSUN email above to request a password reset."
+      );
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(
+        auth,
+        loginEmail.trim()
       );
 
-      setLoginPending(false);
-      navigate("/dashboard", { replace: true });
-    }, 600);
+      setLoginNotice(
+        "If this email has an account, a password reset email will arrive shortly."
+      );
+    } catch (error) {
+      setLoginNotice(
+        error instanceof Error
+          ? error.message
+          : "Unable to request password reset."
+      );
+    }
   }
 
   return (
@@ -84,6 +135,7 @@ export default function Login() {
         onSubmit={handleLogin}
       >
         {/* CSUN email */}
+
         <div
           className={`rr-field${
             loginErrors.email ? " has-error" : ""
@@ -115,6 +167,7 @@ export default function Login() {
         </div>
 
         {/* Password */}
+
         <div
           className={`rr-field${
             loginErrors.password ? " has-error" : ""
@@ -128,13 +181,7 @@ export default function Login() {
             <a
               className="rr-auth__forgot"
               href="#"
-              onClick={(event) => {
-                event.preventDefault();
-
-                setLoginNotice(
-                  "Password reset will be available once Firebase Authentication is connected."
-                );
-              }}
+              onClick={handleReset}
             >
               Forgot password?
             </a>
@@ -160,6 +207,7 @@ export default function Login() {
         </div>
 
         {/* Log in button */}
+
         <button
           className="rr-auth__btn rr-auth__btn--primary"
           type="submit"
@@ -169,15 +217,13 @@ export default function Login() {
         </button>
 
         {loginNotice && (
-          <p
-            className="rr-auth__notice"
-            role="status"
-          >
+          <p className="rr-auth__notice" role="status">
             {loginNotice}
           </p>
         )}
 
         {/* Create account link */}
+
         <p className="rr-auth__fine">
           New to RoomieReport?{" "}
           <Link to="/signup">

@@ -1,5 +1,12 @@
 
-import { Navigate, Outlet, Route, Routes } from "react-router-dom";
+import {
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+} from "react-router-dom";
+
+import { useAuth } from "./auth/AuthProvider";
 
 import AppLayout from "./components/AppLayout";
 import Dashboard from "./pages/Dashboard";
@@ -14,48 +21,103 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import VerifyEmail from "./pages/VerifyEmail";
 
-// Temporary demo session until Firebase Authentication is connected.
-function hasDemoSession() {
-  return sessionStorage.getItem("roomiereport-demo-session") === "true";
+/* Protect pages that require a verified account */
+
+function ProtectedRoute() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <p role="status" style={{ padding: 24 }}>
+        Loading RoomieReport...
+      </p>
+    );
+  }
+
+  return user ? (
+    <Outlet />
+  ) : (
+    <Navigate to="/login" replace />
+  );
 }
 
-function DemoGuard() {
-  return hasDemoSession() ? <Outlet /> : <Navigate to="/login" replace />;
+/* Redirect visitors to the correct page */
+
+function HomeRedirect() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <p role="status" style={{ padding: 24 }}>
+        Loading RoomieReport...
+      </p>
+    );
+  }
+
+  return (
+    <Navigate
+      to={user ? "/dashboard" : "/login"}
+      replace
+    />
+  );
 }
 
 export default function App() {
   return (
     <Routes>
-      <Route
-        path="/"
-        element={
-          <Navigate
-            to={hasDemoSession() ? "/dashboard" : "/login"}
-            replace
-          />
-        }
-      />
+      <Route path="/" element={<HomeRedirect />} />
+
+      {/* Public pages */}
 
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/verify" element={<VerifyEmail />} />
 
-      <Route element={<DemoGuard />}>
+      {/* Protected pages */}
+
+      <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/find" element={<FindRoommates />} />
-          <Route path="/students/:id" element={<StudentProfile />} />
-          <Route path="/requests" element={<Requests />} />
-          <Route path="/reviews" element={<MyReviews />} />
+          <Route
+            path="/dashboard"
+            element={<Dashboard />}
+          />
+
+          <Route
+            path="/find"
+            element={<FindRoommates />}
+          />
+
+          <Route
+            path="/students/:id"
+            element={<StudentProfile />}
+          />
+
+          <Route
+            path="/requests"
+            element={<Requests />}
+          />
+
+          <Route
+            path="/reviews"
+            element={<MyReviews />}
+          />
+
           <Route
             path="/reviews/write/:connectionId"
             element={<WriteReview />}
           />
-          <Route path="/profile" element={<MyProfile />} />
+
+          <Route
+            path="/profile"
+            element={<MyProfile />}
+          />
         </Route>
       </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route
+        path="*"
+        element={<Navigate to="/" replace />}
+      />
     </Routes>
   );
 }

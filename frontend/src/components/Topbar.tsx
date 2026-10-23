@@ -1,27 +1,35 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+
+import {
+  Link,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 
 import {
   Bell,
   Check,
   ChevronRight,
   PenLine,
+  RefreshCw,
   UserRoundPlus,
   X,
 } from "lucide-react";
 
 import Avatar from "./Avatar";
 import GlobalSearch from "./GlobalSearch";
+
 import { useAuth } from "../auth/AuthProvider";
 
 import {
-  getDaysRemaining,
-  getOtherRoommate,
-  useRequestData,
-} from "../services/api";
+  useFirebaseRoommates,
+} from "../services/firebaseRoommates";
 
-import { CURRENT_USER_ID, users } from "../data/mock";
-import type { User } from "../types";
+import {
+  getFirebaseReviewData,
+} from "../services/firebaseReviews";
+
+import type { PendingReview, User } from "../types";
 
 import "../styles/Topbar.css";
 
@@ -31,13 +39,14 @@ interface NotificationItem {
   title: string;
   subtitle: string;
   target: string;
+  destination: string;
   kind: "request" | "confirm" | "review";
 }
 
-// Store notification preferences locally for the mock frontend.
-// These are separate from actual request and connection data.
 const READ_KEY = "roomiereport-read-notifications";
 const DISMISSED_KEY = "roomiereport-dismissed-notifications";
+
+/* Read saved notification preferences */
 
 function loadIds(key: string): string[] {
   try {
@@ -47,14 +56,10 @@ function loadIds(key: string): string[] {
 
     const parsed: unknown = JSON.parse(stored);
 
-    if (
-      Array.isArray(parsed) &&
+    return Array.isArray(parsed) &&
       parsed.every((item) => typeof item === "string")
-    ) {
-      return parsed;
-    }
-
-    return [];
+      ? parsed
+      : [];
   } catch {
     return [];
   }
@@ -62,29 +67,50 @@ function loadIds(key: string): string[] {
 
 export default function Topbar() {
   const { user, profile } = useAuth();
-  const { requests, connections } = useRequestData();
+
+  const {
+    requests,
+    connections,
+    students,
+    loading,
+    error,
+    refresh,
+  } = useFirebaseRoommates();
 
   const navigate = useNavigate();
   const location = useLocation();
 
   const [open, setOpen] = useState(false);
+
+  const [pendingReviews, setPendingReviews] =
+    useState<PendingReview[]>([]);
+
+  const [reviewError, setReviewError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [readIds, setReadIds] = useState<string[]>(
+    () => loadIds(READ_KEY)
+  );
+
+  const [dismissedIds, setDismissedIds] =
+    useState<string[]>(
+      () => loadIds(DISMISSED_KEY)
+    );
+
   const popupRef = useRef<HTMLDivElement>(null);
 
-  // Track read and dismissed notifications.
-  const [readIds, setReadIds] = useState<string[]>(() =>
-    loadIds(READ_KEY)
-  );
+  const userId = user?.id || "";
 
-  const [dismissedIds, setDismissedIds] = useState<string[]>(() =>
-    loadIds(DISMISSED_KEY)
-  );
+  /* Save notification preferences */
 
-  // Keep these preferences after refreshing the page.
   useEffect(() => {
     try {
-      localStorage.setItem(READ_KEY, JSON.stringify(readIds));
+      localStorage.setItem(
+        READ_KEY,
+        JSON.stringify(readIds)
+      );
     } catch {
-      // Storage may be unavailable in some browsers.
+      // Browser storage may be unavailable.
     }
   }, [readIds]);
 
@@ -95,132 +121,214 @@ export default function Topbar() {
         JSON.stringify(dismissedIds)
       );
     } catch {
-      // Storage may be unavailable in some browsers.
+      // Browser storage may be unavailable.
     }
   }, [dismissedIds]);
 
+  /* Load real review actions */
+
+  useEffect(() => {
+    let active = true;
+
+    if (!userId) return;
+
+    getFirebaseReviewData()
+      .then((data) => {
+        if (!active) return;
+
+        setPendingReviews(data.pending);
+        setReviewError("");
+      })
+      .catch((cause) => {
+        if (!active) return;
+
+        setReviewError(
+          cause instanceof Error
+            ? cause.message
+            : "Unable to load review notifications."
+        );
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
+  /* Refresh notifications */
+
+  async function refreshNotifications() {
+    if (refreshing) return;
+
+    setRefreshing(true);
+    setReviewError("");
+
+    try {
+      await refresh();
+
+      const reviewData =
+        await getFirebaseReviewData();
+
+      setPendingReviews(reviewData.pending);
+    } catch (cause) {
+      setReviewError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to refresh notifications."
+      );
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  /* Find the student associated with an action */
+
+  function getStudent(studentId: string): User {
+    return (
+      students[studentId] || {
+        id: studentId,
+        name: "CSUN Student",
+        email: "",
+        verificationStatus: "verified",
+        avatarColor: "#3461e8",
+      }
+    );
+  }
+
   const notifications: NotificationItem[] = [];
+
+  /* Incoming request notifications */
 
   requests
     .filter(
       (request) =>
-        request.receiverId === CURRENT_USER_ID &&
+        request.receiverId === userId &&
         request.status === "pending"
     )
     .forEach((request) => {
-      const sender = users[request.senderId];
-
-      if (!sender) return;
+      const sender = getStudent(request.senderId);
 
       notifications.push({
-        id: `notification-${request.id}`,
+        id: `${userId}-request-${request.id}`,
         user: sender,
         title: `${sender.name.split(" ")[0]} sent you a request`,
-        subtitle: new Date(request.createdAt).toLocaleString(),
+        subtitle: "Accept or decline their request",
         target: `row-${request.id}`,
+        destination: "/requests",
         kind: "request",
       });
     });
 
+  /* Roommate confirmation notifications */
+
   connections
     .filter(
       (connection) =>
-        connection.userIds.includes(CURRENT_USER_ID) &&
-        connection.status !== "closed"
+        connection.userIds.includes(userId) &&
+        connection.status === "awaiting_confirmation" &&
+        !connection.confirmedBy.includes(userId)
     )
     .forEach((connection) => {
-      const roommate = getOtherRoommate(connection);
+      const roommateId = connection.userIds.find(
+        (id) => id !== userId
+      );
 
-      if (!roommate) return;
+      if (!roommateId) return;
 
-      const firstName = roommate.name.split(" ")[0];
+      const roommate = getStudent(roommateId);
 
-      const meConfirmed =
-        connection.confirmedBy.includes(CURRENT_USER_ID);
-
-      const themConfirmed =
-        connection.confirmedBy.includes(roommate.id);
-
-      if (
-        connection.status === "awaiting_confirmation" &&
-        !meConfirmed &&
-        themConfirmed
-      ) {
-        notifications.push({
-          id: `notification-confirm-${connection.id}`,
-          user: roommate,
-          title: `${firstName} confirmed you lived together`,
-          subtitle: "Your turn to confirm",
-          target: `row-${connection.id}`,
-          kind: "confirm",
-        });
-      }
-
-      if (connection.status === "review_open") {
-        notifications.push({
-          id: `notification-review-${connection.id}`,
-          user: roommate,
-          title: `Review ${firstName}`,
-          subtitle: `${getDaysRemaining(
-            connection.reviewDeadline
-          )} days left to submit`,
-          target: `row-${connection.id}`,
-          kind: "review",
-        });
-      }
+      notifications.push({
+        id: `${userId}-confirm-${connection.id}`,
+        user: roommate,
+        title: connection.confirmedBy.includes(
+          roommateId
+        )
+          ? `${roommate.name.split(" ")[0]} confirmed living together`
+          : `Confirm your roommate connection`,
+        subtitle: "Your confirmation is needed",
+        target: `row-${connection.id}`,
+        destination: "/requests",
+        kind: "confirm",
+      });
     });
 
-  // Show only notifications that have not been dismissed.
+  /* Pending review notifications */
+
+  pendingReviews
+    .filter(
+      (review) =>
+        !review.youSubmitted &&
+        review.daysLeft > 0
+    )
+    .forEach((review) => {
+      notifications.push({
+        id: `${userId}-review-${review.connectionId}`,
+        user: review.roommate,
+        title: `Review ${review.roommate.name.split(" ")[0]}`,
+        subtitle: `${review.daysLeft} ${
+          review.daysLeft === 1 ? "day" : "days"
+        } left to submit`,
+        target: `row-${review.connectionId}`,
+        destination: "/reviews",
+        kind: "review",
+      });
+    });
+
   const visibleNotifications = notifications.filter(
     (item) => !dismissedIds.includes(item.id)
   );
 
-  // Read notifications no longer count toward the bell dot.
   const unreadCount = visibleNotifications.filter(
     (item) => !readIds.includes(item.id)
   ).length;
 
-  // Mark one notification as read.
   function markAsRead(id: string) {
     setReadIds((previous) =>
-      previous.includes(id) ? previous : [...previous, id]
+      previous.includes(id)
+        ? previous
+        : [...previous, id]
     );
   }
 
-  // Mark all currently visible notifications as read.
   function markAllRead() {
     setReadIds((previous) => [
       ...new Set([
         ...previous,
-        ...visibleNotifications.map((item) => item.id),
+        ...visibleNotifications.map(
+          (item) => item.id
+        ),
       ]),
     ]);
   }
 
-  // Dismiss one notification.
   function dismissNotification(id: string) {
     setDismissedIds((previous) =>
-      previous.includes(id) ? previous : [...previous, id]
+      previous.includes(id)
+        ? previous
+        : [...previous, id]
     );
   }
 
-  // Clear all currently visible notifications.
   function clearAllNotifications() {
     setDismissedIds((previous) => [
       ...new Set([
         ...previous,
-        ...visibleNotifications.map((item) => item.id),
+        ...visibleNotifications.map(
+          (item) => item.id
+        ),
       ]),
     ]);
   }
 
-  // Close the dropdown when clicking outside or using Escape.
+  /* Close notifications when clicking outside */
+
   useEffect(() => {
     if (!open) return;
 
     function handleOutsideClick(event: MouseEvent) {
       if (
-        !popupRef.current?.contains(event.target as Node)
+        !popupRef.current?.contains(
+          event.target as Node
+        )
       ) {
         setOpen(false);
       }
@@ -255,11 +363,16 @@ export default function Topbar() {
     };
   }, [open]);
 
-  // Open the corresponding request.
-  // Clicking also marks the notification as read.
+  /* Open the relevant page */
+
   function openNotification(item: NotificationItem) {
     markAsRead(item.id);
     setOpen(false);
+
+    if (item.destination === "/reviews") {
+      navigate("/reviews");
+      return;
+    }
 
     const hash = `#${item.target}`;
 
@@ -267,20 +380,12 @@ export default function Topbar() {
       location.pathname === "/requests" &&
       location.hash === hash
     ) {
-      const element = document.getElementById(item.target);
-
-      if (element) {
-        element.scrollIntoView({
+      document
+        .getElementById(item.target)
+        ?.scrollIntoView({
           behavior: "smooth",
           block: "center",
         });
-
-        element.classList.remove("request-row--flash");
-
-        void element.offsetWidth;
-
-        element.classList.add("request-row--flash");
-      }
     } else {
       navigate(`/requests${hash}`);
     }
@@ -294,18 +399,26 @@ export default function Topbar() {
         className="topbar__notifications"
         ref={popupRef}
       >
-        {/* notification bell */}
+        {/* Notification bell */}
+
         <button
           className={`topbar__icon-btn${
-            unreadCount > 0 ? " has-dot" : ""
+            unreadCount > 0
+              ? " has-dot"
+              : ""
           }`}
           type="button"
           aria-label="Notifications"
           aria-expanded={open}
           aria-controls="roomie-notifications"
-          onClick={() => setOpen((value) => !value)}
+          onClick={() =>
+            setOpen((value) => !value)
+          }
         >
-          <Bell size={18} aria-hidden="true" />
+          <Bell
+            size={18}
+            aria-hidden="true"
+          />
         </button>
 
         {open && (
@@ -315,7 +428,8 @@ export default function Topbar() {
             role="region"
             aria-label="Notifications"
           >
-            {/* Mark all read */}
+            {/* Notification header */}
+
             <div className="notif__head">
               <span>Notifications</span>
 
@@ -329,22 +443,41 @@ export default function Topbar() {
               </button>
             </div>
 
-            {visibleNotifications.length > 0 ? (
+            {(error || reviewError) && (
+              <p
+                className="notif__empty"
+                role="alert"
+              >
+                {error || reviewError}
+              </p>
+            )}
+
+            {loading ? (
+              <p className="notif__empty">
+                Loading notifications...
+              </p>
+            ) : visibleNotifications.length > 0 ? (
               visibleNotifications.map((item) => {
-                const isUnread = !readIds.includes(item.id);
+                const isUnread =
+                  !readIds.includes(item.id);
 
                 return (
                   <div
                     className="notif__row"
                     key={item.id}
                   >
-                    {/* clickable notification */}
+                    {/* Notification item */}
+
                     <button
                       type="button"
                       className={`notif__item${
-                        isUnread ? " is-unread" : ""
+                        isUnread
+                          ? " is-unread"
+                          : ""
                       }`}
-                      onClick={() => openNotification(item)}
+                      onClick={() =>
+                        openNotification(item)
+                      }
                     >
                       <span className="notif__avatar-wrap">
                         <Avatar
@@ -368,8 +501,13 @@ export default function Topbar() {
                       </span>
 
                       <span className="notif__copy">
-                        <strong>{item.title}</strong>
-                        <span>{item.subtitle}</span>
+                        <strong>
+                          {item.title}
+                        </strong>
+
+                        <span>
+                          {item.subtitle}
+                        </span>
                       </span>
 
                       <ChevronRight
@@ -379,7 +517,6 @@ export default function Topbar() {
                       />
                     </button>
 
-                    {/* Unread indicator */}
                     {isUnread && (
                       <span
                         className="notif__dot"
@@ -387,7 +524,8 @@ export default function Topbar() {
                       />
                     )}
 
-                    {/* Dismiss individual notification */}
+                    {/* Dismiss notification */}
+
                     <button
                       className="notif__x"
                       type="button"
@@ -408,7 +546,22 @@ export default function Topbar() {
               </p>
             )}
 
-            {/* Clear all notifications */}
+            {/* Refresh notifications */}
+
+            <button
+              className="notif__clear"
+              type="button"
+              disabled={refreshing}
+              onClick={() =>
+                void refreshNotifications()
+              }
+            >
+              <RefreshCw size={13} />
+              {refreshing
+                ? "Refreshing..."
+                : "Refresh notifications"}
+            </button>
+
             {visibleNotifications.length > 0 && (
               <button
                 className="notif__clear"
@@ -419,7 +572,6 @@ export default function Topbar() {
               </button>
             )}
 
-            {/* View all requests link */}
             <Link
               className="notif__foot"
               to="/requests"
@@ -431,15 +583,16 @@ export default function Topbar() {
         )}
       </div>
 
-    {/* Profile avatar - synchronized with My Profile */}
-    {user && (
-      <Avatar
-        user={profile?.user ?? user}
-        photoUrl={profile?.photoUrl}
-        size="sm"
-        round
-      />
-    )}
+      {/* Shared profile avatar */}
+
+      {user && (
+        <Avatar
+          user={profile?.user ?? user}
+          photoUrl={profile?.photoUrl}
+          size="sm"
+          round
+        />
+      )}
     </div>
   );
 }

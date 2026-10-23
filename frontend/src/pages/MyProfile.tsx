@@ -1,7 +1,9 @@
+
 import { useState } from "react";
 import { ArrowLeft, Pencil } from "lucide-react";
 
 import { useAuth } from "../auth/AuthProvider";
+import { updateMyProfile } from "../services/profileService";
 
 import PageHeader from "../components/PageHeader";
 import Card from "../components/Card";
@@ -10,19 +12,50 @@ import Badge from "../components/Badge";
 import Button from "../components/Button";
 import EditProfileForm from "../components/EditProfileForm";
 
+import type { Student } from "../types";
+
 import "../styles/MyProfile.css";
 
 export default function MyProfile() {
-  const { profile, updateProfile } = useAuth();
+  const {
+    profile,
+    loading,
+    refreshProfile,
+  } = useAuth();
 
   const [editing, setEditing] = useState(false);
   const [message, setMessage] = useState("");
+
+  /* Save profile changes to Firebase */
+
+  async function handleSave(updatedProfile: Student) {
+    await updateMyProfile({
+      displayName: updatedProfile.user.name,
+      bio: updatedProfile.bio,
+      preferences: updatedProfile.preferences,
+      avatarColor: updatedProfile.user.avatarColor,
+    });
+
+    await refreshProfile();
+
+    setEditing(false);
+    setMessage("Profile updated successfully.");
+  }
+
+  if (loading) {
+    return (
+      <PageHeader
+        title="My Profile"
+        subtitle="Loading your profile..."
+      />
+    );
+  }
 
   if (!profile) {
     return (
       <PageHeader
         title="My Profile"
-        subtitle="Your profile is not available."
+        subtitle="Your profile is not available. Please try signing in again."
       />
     );
   }
@@ -54,6 +87,8 @@ export default function MyProfile() {
     },
   ];
 
+  /* Edit profile screen */
+
   if (editing) {
     return (
       <>
@@ -75,21 +110,14 @@ export default function MyProfile() {
           <EditProfileForm
             profile={profile}
             onCancel={() => setEditing(false)}
-            onSave={async (updatedProfile) => {
-              // Later, await the Firebase save here
-              // before updating the shared profile.
-              updateProfile(updatedProfile);
-
-              setEditing(false);
-              setMessage(
-                "Profile updated successfully."
-              );
-            }}
+            onSave={handleSave}
           />
         </Card>
       </>
     );
   }
+
+  /* My profile screen */
 
   return (
     <>
@@ -119,16 +147,20 @@ export default function MyProfile() {
       )}
 
       <div className="profile-grid">
+        {/* Profile information */}
+
         <Card className="profile-card">
           <div className="profile-card__content">
             <Avatar
               user={profile.user}
-              photoUrl={profile.photoUrl}
               size="lg"
               round
             />
 
-            <h2 className="profile-card__name">
+            <h2
+              className="profile-card__name"
+              style={{ color: "#151e38" }}
+            >
               {profile.user.name}
             </h2>
 
@@ -136,11 +168,45 @@ export default function MyProfile() {
               Verified CSUN Student
             </Badge>
 
-            <p className="profile-card__bio-preview">
-              {profile.bio}
-            </p>
+            {/* About Me */}
+
+            <div
+              style={{
+                width: "100%",
+                marginTop: "24px",
+                paddingTop: "18px",
+                borderTop: "1px solid #e6eaf2",
+                textAlign: "left",
+              }}
+            >
+              <h3
+                style={{
+                  margin: "0 0 12px",
+                  fontSize: "17px",
+                  fontWeight: 700,
+                  color: "#151e38",
+                }}
+              >
+                About Me
+              </h3>
+
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "15px",
+                  lineHeight: 1.7,
+                  color: "#151e38",
+                  overflowWrap: "anywhere",
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {profile.bio || "No bio added yet."}
+              </p>
+            </div>
           </div>
         </Card>
+
+        {/* Lifestyle preferences */}
 
         <Card title="Lifestyle Preferences">
           <div className="preferences-grid">
@@ -149,22 +215,29 @@ export default function MyProfile() {
                 key={preference.label}
                 className="preference-card"
               >
-                <span className="preference-card__label">
+                <span
+                  className="preference-card__label"
+                  style={{
+                    color: "#151e38",
+                    fontWeight: 500,
+                  }}
+                >
                   {preference.label}
                 </span>
 
-                <strong>{preference.value}</strong>
+                <strong
+                  style={{
+                    color: "#151e38",
+                    fontWeight: 700,
+                  }}
+                >
+                  {preference.value || "Not specified"}
+                </strong>
               </div>
             ))}
           </div>
         </Card>
       </div>
-
-      <Card title="About Me">
-        <p className="about-me">
-          {profile.bio}
-        </p>
-      </Card>
     </>
   );
 }

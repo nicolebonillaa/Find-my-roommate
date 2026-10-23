@@ -2,18 +2,13 @@ import { useEffect, useState } from "react";
 
 import {
   AlertCircle,
-  Lock,
   RefreshCw,
 } from "lucide-react";
 
 import {
-  getPendingReviews,
-  getReviewsAboutMe,
-  getReviewsByMe,
-  reportReview,
-  useRequestData,
-  useReviewRevision,
-} from "../services/api";
+  getFirebaseReviewData,
+  reportFirebaseReview,
+} from "../services/firebaseReviews";
 
 import type {
   PendingReview,
@@ -35,61 +30,20 @@ import "../styles/MyReviews.css";
 
 type Tab = "about-me" | "by-me";
 
-function getErrorMessage(error: unknown): string {
-  const code =
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    typeof error.code === "string"
-      ? error.code
-      : "";
-
-  if (
-    code === "permission-denied" ||
-    code === "firestore/permission-denied"
-  ) {
-    return "You don't have permission to view these reviews.";
-  }
-
-  if (
-    code === "unauthenticated" ||
-    code === "auth/user-token-expired" ||
-    code === "auth/requires-recent-login"
-  ) {
-    return "Your session may have expired. Please sign in again.";
-  }
-
-  if (
-    code === "unavailable" ||
-    code === "firestore/unavailable"
-  ) {
-    return "The service is temporarily unavailable. Please try again.";
-  }
-
-  return "We couldn't load your reviews. Please try again.";
-}
-
 export default function MyReviews() {
-  const { connections } = useRequestData();
-  const reviewRevision = useReviewRevision();
+  const [pending, setPending] =
+    useState<PendingReview[]>([]);
 
-  const [pending, setPending] = useState<PendingReview[]>(
-    []
-  );
+  const [aboutMe, setAboutMe] =
+    useState<PublishedReview[]>([]);
 
-  const [aboutMe, setAboutMe] = useState<
-    PublishedReview[]
-  >([]);
-
-  const [byMe, setByMe] = useState<
-    PublishedReview[]
-  >([]);
+  const [byMe, setByMe] =
+    useState<PublishedReview[]>([]);
 
   const [tab, setTab] = useState<Tab>("about-me");
 
-  const [writing, setWriting] = useState<
-    PendingReview | null
-  >(null);
+  const [writing, setWriting] =
+    useState<PendingReview | null>(null);
 
   const [notice, setNotice] = useState("");
 
@@ -98,54 +52,61 @@ export default function MyReviews() {
 
   const [retryCount, setRetryCount] = useState(0);
 
-  // Reload whenever review or connection data changes.
+  /* Load reviews from Firebase */
+
   useEffect(() => {
     let active = true;
 
-    Promise.all([
-      getPendingReviews(),
-      getReviewsAboutMe(),
-      getReviewsByMe(),
-    ])
-      .then(([pendingData, aboutData, byData]) => {
+    getFirebaseReviewData()
+      .then((data) => {
         if (!active) return;
 
-        setPending(pendingData);
-        setAboutMe(aboutData);
-        setByMe(byData);
+        setPending(data.pending);
+        setAboutMe(data.aboutMe);
+        setByMe(data.byMe);
         setError("");
       })
-      .catch((err: unknown) => {
+      .catch((cause) => {
         if (!active) return;
 
-        setError(getErrorMessage(err));
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Unable to load reviews."
+        );
       })
       .finally(() => {
-        if (!active) return;
-
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       });
 
     return () => {
       active = false;
     };
-  }, [connections, reviewRevision, retryCount]);
+  }, [retryCount]);
 
-  function handleRetry() {
+  /* Reload after submitting a review */
+
+  function handleReload() {
     setLoading(true);
     setError("");
     setRetryCount((count) => count + 1);
   }
 
+  function handleSubmitted() {
+    setWriting(null);
+
+    setNotice(
+      "Your review was submitted privately. It will become visible when the reveal conditions are met."
+    );
+
+    handleReload();
+  }
+
   const actions = pending.filter(
     (item) => !item.youSubmitted
   ).length;
-
-  const hidden = pending.filter(
-    (item) =>
-      !item.youSubmitted &&
-      item.submittedCount > 0
-  );
 
   const average =
     aboutMe.length > 0
@@ -167,17 +128,16 @@ export default function MyReviews() {
       />
 
       {/* Loading */}
+
       {loading && (
         <Card>
           <div
             className="my-reviews__feedback"
             role="status"
-            aria-live="polite"
           >
             <RefreshCw
               size={25}
               className="my-reviews__loading-icon"
-              aria-hidden="true"
             />
 
             <h3>Loading reviews...</h3>
@@ -189,24 +149,21 @@ export default function MyReviews() {
         </Card>
       )}
 
-      {/* Error and retry */}
+      {/* Error */}
+
       {!loading && error && (
         <Card>
           <div
             className="my-reviews__feedback"
             role="alert"
           >
-            <AlertCircle
-              size={28}
-              className="my-reviews__feedback-icon"
-              aria-hidden="true"
-            />
+            <AlertCircle size={28} />
 
             <h3>Unable to load reviews</h3>
 
             <p>{error}</p>
 
-            <Button onClick={handleRetry}>
+            <Button onClick={handleReload}>
               <RefreshCw size={16} />
               Try again
             </Button>
@@ -214,7 +171,8 @@ export default function MyReviews() {
         </Card>
       )}
 
-      {/* Loaded content */}
+      {/* Reviews */}
+
       {!loading && !error && (
         <div className="my-reviews">
           {notice && (
@@ -227,14 +185,17 @@ export default function MyReviews() {
           )}
 
           {/* Reviews waiting for you */}
+
           {pending.length > 0 && (
             <Card
               title="Reviews waiting for you"
               badge={
                 actions > 0 ? (
                   <Badge variant="orange">
-                    {actions} action
-                    {actions === 1 ? "" : "s"}
+                    {actions}{" "}
+                    {actions === 1
+                      ? "action"
+                      : "actions"}
                   </Badge>
                 ) : undefined
               }
@@ -252,6 +213,7 @@ export default function MyReviews() {
           )}
 
           {/* Published reviews */}
+
           <Card>
             <div className="my-reviews__bar">
               <div
@@ -262,13 +224,17 @@ export default function MyReviews() {
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={tab === "about-me"}
+                  aria-selected={
+                    tab === "about-me"
+                  }
                   className={`badge badge__filter${
                     tab === "about-me"
                       ? " is-active"
                       : ""
                   }`}
-                  onClick={() => setTab("about-me")}
+                  onClick={() =>
+                    setTab("about-me")
+                  }
                 >
                   About me · {aboutMe.length}
                 </button>
@@ -282,7 +248,9 @@ export default function MyReviews() {
                       ? " is-active"
                       : ""
                   }`}
-                  onClick={() => setTab("by-me")}
+                  onClick={() =>
+                    setTab("by-me")
+                  }
                 >
                   Written by me · {byMe.length}
                 </button>
@@ -298,10 +266,10 @@ export default function MyReviews() {
                     <StarRating value={average} />
 
                     <span>
-                      {aboutMe.length} verified review
+                      {aboutMe.length} verified{" "}
                       {aboutMe.length === 1
-                        ? ""
-                        : "s"}
+                        ? "review"
+                        : "reviews"}
                     </span>
                   </div>
                 )}
@@ -315,13 +283,12 @@ export default function MyReviews() {
                   perspective={tab}
                   onReport={
                     tab === "about-me"
-                      ? reportReview
+                      ? reportFirebaseReview
                       : undefined
                   }
                 />
               ))}
 
-              {/* No published reviews */}
               {shown.length === 0 && (
                 <p className="my-reviews__empty">
                   {tab === "about-me"
@@ -329,50 +296,36 @@ export default function MyReviews() {
                     : "You haven't published any reviews yet."}
                 </p>
               )}
-
-              {/* Double-blind locked review notice */}
-              {tab === "about-me" &&
-                hidden.map((item) => (
-                  <div
-                    key={item.connectionId}
-                    className="locked my-reviews__locked"
-                  >
-                    <Lock
-                      size={18}
-                      aria-hidden="true"
-                    />
-
-                    <span>
-                      <strong>
-                        {
-                          item.roommate.name.split(
-                            " "
-                          )[0]
-                        }
-                        &apos;s review of you
-                      </strong>{" "}
-                      stays hidden until both people
-                      submit or the review deadline ends.
-                    </span>
-                  </div>
-                ))}
             </div>
           </Card>
+
+          {/* Refresh button */}
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+            }}
+          >
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleReload}
+            >
+              <RefreshCw size={15} />
+              Refresh reviews
+            </Button>
+          </div>
         </div>
       )}
 
-      {/* Existing review submission dialog */}
+      {/* Review popup */}
+
       {writing && (
         <WriteReviewDialog
           pending={writing}
           onClose={() => setWriting(null)}
-          onSubmitted={() => {
-            setWriting(null);
-
-            setNotice(
-              "Your review was submitted privately. It will appear when published."
-            );
-          }}
+          onSubmitted={handleSubmitted}
         />
       )}
     </>
