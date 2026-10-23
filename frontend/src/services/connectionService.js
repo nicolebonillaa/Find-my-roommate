@@ -13,9 +13,7 @@ import {
 
 import { auth, db } from "../firebase";
 
-// Two minutes for the hackathon demonstration.
-// Production value should be seven days.
-const DEMO_REVIEW_DURATION_MS = 2 * 60 * 1000;
+const REVIEW_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
 function requireUser() {
   if (!auth.currentUser) {
@@ -70,7 +68,6 @@ export async function getConnection(connectionId) {
 
 export async function confirmLivingTogether(connectionId) {
   const user = requireUser();
-
   const connectionReference = doc(db, "connections", connectionId);
 
   return runTransaction(db, async (transaction) => {
@@ -109,16 +106,17 @@ export async function confirmLivingTogether(connectionId) {
 
     if (bothConfirmed && !connection.reviewDeadline) {
       updateData.status = "review_open";
-
       updateData.reviewDeadline = Timestamp.fromMillis(
-        Date.now() + DEMO_REVIEW_DURATION_MS
+        Date.now() + REVIEW_DURATION_MS
       );
     }
 
     transaction.update(connectionReference, updateData);
 
     return {
-      status: bothConfirmed ? "review_open" : "awaiting_confirmation",
+      status: bothConfirmed
+        ? "review_open"
+        : "awaiting_confirmation",
       confirmedBy,
       deadlineCreated: bothConfirmed,
     };
@@ -127,8 +125,8 @@ export async function confirmLivingTogether(connectionId) {
 
 export async function endRoommateConnection(connectionId) {
   const user = requireUser();
-
   const connectionReference = doc(db, "connections", connectionId);
+
   const connectionSnapshot = await getDoc(connectionReference);
 
   if (!connectionSnapshot.exists()) {
@@ -146,7 +144,7 @@ export async function endRoommateConnection(connectionId) {
     endedAt: Timestamp.now(),
   };
 
-  // Preserve an open review window after the connection ends.
+  // Preserve the review window if it has already opened.
   if (!connection.reviewDeadline) {
     updateData.status = "closed";
   }
@@ -199,6 +197,8 @@ export function getDaysRemaining(reviewDeadline) {
 
   return Math.max(
     0,
-    Math.ceil(difference / (1000 * 60 * 60 * 24))
+    Math.ceil(
+      difference / (1000 * 60 * 60 * 24)
+    )
   );
 }
