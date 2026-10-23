@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -15,14 +16,23 @@ import { useAuth } from "../auth/AuthProvider";
 
 import {
   getDashboardStats,
-  getPendingReviews,
   getRecentActivity,
-  getStudents,
-} from "../services/api";
+} from "../services/dashboardService";
+
+import {
+  getFirebaseStudents,
+} from "../services/firebaseRoommates";
+
+import {
+  getFirebaseReviewData,
+} from "../services/firebaseReviews";
 
 import type {
-  ActivityItem,
-  ActivityKind,
+  FirebaseDashboardStats,
+  FirebaseActivityRecord,
+} from "../services/dashboardService";
+
+import type {
   PendingReview,
   Student,
 } from "../types";
@@ -38,13 +48,14 @@ import StudentCard from "../components/StudentCard";
 
 import "../styles/Dashboard.css";
 
-type Stats = Awaited<ReturnType<typeof getDashboardStats>>;
+interface ActivityDisplay {
+  id: string;
+  title: string;
+  time: string;
+  icon: ReactNode;
+}
 
-const activityIcons: Record<ActivityKind, ReactNode> = {
-  accepted: <Check size={16} />,
-  published: <Star size={16} />,
-  request: <UserPlus size={16} />,
-};
+/* Greeting based on local time */
 
 function greeting() {
   const hour = new Date().getHours();
@@ -55,102 +66,244 @@ function greeting() {
   return "Good evening";
 }
 
+const dashboardGreeting = greeting();
+
+/* Firebase error messages */
+
 function getErrorMessage(error: unknown): string {
   const code =
     typeof error === "object" &&
     error !== null &&
-    "code" in error &&
-    typeof error.code === "string"
-      ? error.code
+    "code" in error
+      ? String(error.code)
       : "";
 
-  if (
-    code === "permission-denied" ||
-    code === "firestore/permission-denied"
-  ) {
-    return "You don't have permission to view this information.";
+  if (code.includes("permission-denied")) {
+    return "Firebase denied access to some dashboard information. Please check your Firestore permissions.";
   }
 
-  if (
-    code === "unauthenticated" ||
-    code === "auth/user-token-expired" ||
-    code === "auth/requires-recent-login"
-  ) {
-    return "Your session may have expired. Please sign in again.";
+  if (code.includes("unauthenticated")) {
+    return "Please sign in again to view your dashboard.";
   }
 
-  if (
-    code === "unavailable" ||
-    code === "firestore/unavailable"
-  ) {
-    return "The service is temporarily unavailable. Please try again.";
+  if (code.includes("unavailable")) {
+    return "Firebase is temporarily unavailable. Please try again.";
   }
 
-  return "We couldn't load your dashboard. Please try again.";
+  return error instanceof Error
+    ? error.message
+    : "Unable to load your dashboard.";
+}
+
+/* Format Firebase dates */
+
+function formatActivityDate(
+  value: string | null
+): string {
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleString([], {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+/* Read names from Firebase activity */
+
+function getActivityUserId(
+  record: FirebaseActivityRecord
+): string {
+  const data = record.data;
+
+  if (record.type === "incoming_request") {
+    return typeof data.senderId === "string"
+      ? data.senderId
+      : "";
+  }
+
+  if (record.type === "outgoing_request") {
+    return typeof data.receiverId === "string"
+      ? data.receiverId
+      : "";
+  }
+
+  return "";
+}
+
+function getActivityName(
+  userId: string,
+  students: Student[]
+): string {
+  const student = students.find(
+    (item) => item.userId === userId
+  );
+
+  return student?.user.name || "A CSUN student";
+}
+
+/* Display actual Firebase activity */
+
+function formatActivity(
+  record: FirebaseActivityRecord,
+  students: Student[]
+): ActivityDisplay {
+  const studentId = getActivityUserId(record);
+
+  const studentName = getActivityName(
+    studentId,
+    students
+  );
+
+  let title = "Roommate activity";
+  let icon: ReactNode = <Check size={16} />;
+
+  if (record.type === "incoming_request") {
+    if (record.status === "accepted") {
+      title = `You accepted ${studentName}'s request`;
+    } else if (record.status === "declined") {
+      title = `You declined ${studentName}'s request`;
+    } else if (record.status === "pending") {
+      title = `${studentName} sent you a request`;
+    } else {
+      title = "An incoming roommate request was updated";
+    }
+
+    icon = <UserPlus size={16} />;
+  }
+
+  if (record.type === "outgoing_request") {
+    if (record.status === "accepted") {
+      title = `${studentName} accepted your request`;
+    } else if (record.status === "declined") {
+      title = `${studentName} declined your request`;
+    } else if (record.status === "pending") {
+      title = `You sent ${studentName} a request`;
+    } else {
+      title = "Your roommate request was updated";
+    }
+
+    icon = <UserPlus size={16} />;
+  }
+
+  if (record.type === "connection") {
+    if (record.status === "review_open") {
+      title = "Your roommate review window opened";
+    } else if (record.status === "closed") {
+      title = "A roommate connection ended";
+    } else {
+      title = "A roommate connection was created";
+    }
+
+    icon = <Check size={16} />;
+  }
+
+  if (record.type === "review_submitted") {
+    title = "You submitted a roommate review";
+    icon = <Star size={16} />;
+  }
+
+  return {
+    id: record.id,
+    title,
+    time: formatActivityDate(record.date),
+    icon,
+  };
 }
 
 export default function Dashboard() {
   const { user } = useAuth();
 
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [pending, setPending] = useState<PendingReview | null>(
-    null
-  );
+  const [stats, setStats] =
+    useState<FirebaseDashboardStats | null>(null);
 
-  const [activity, setActivity] = useState<ActivityItem[]>([]);
-  const [students, setStudents] = useState<Student[]>([]);
+  const [pending, setPending] =
+    useState<PendingReview | null>(null);
+
+  const [publishedCount, setPublishedCount] =
+    useState(0);
+
+  const [activity, setActivity] =
+    useState<ActivityDisplay[]>([]);
+
+  const [students, setStudents] =
+    useState<Student[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [retryCount, setRetryCount] = useState(0);
 
+  /* Load real Firebase dashboard data */
+
   useEffect(() => {
     let active = true;
 
     Promise.all([
       getDashboardStats(),
-      getPendingReviews(),
       getRecentActivity(),
-      getStudents(),
+      getFirebaseReviewData(),
+      getFirebaseStudents(),
     ])
       .then(
         ([
           statsData,
-          pendingData,
           activityData,
+          reviewData,
           studentsData,
         ]) => {
           if (!active) return;
 
+          const otherStudents = studentsData.filter(
+            (student) =>
+              student.userId !== user?.id
+          );
+
           setStats(statsData);
 
           setPending(
-            pendingData.find(
+            reviewData.pending.find(
               (item) => !item.youSubmitted
             ) ?? null
           );
 
-          setActivity(activityData);
-          setStudents(studentsData);
+          setPublishedCount(
+            reviewData.aboutMe.length
+          );
+
+          setActivity(
+            activityData.map((item) =>
+              formatActivity(
+                item,
+                otherStudents
+              )
+            )
+          );
+
+          setStudents(otherStudents);
           setError("");
         }
       )
-      .catch((err: unknown) => {
+      .catch((cause: unknown) => {
         if (!active) return;
 
-        setError(getErrorMessage(err));
+        setError(getErrorMessage(cause));
       })
       .finally(() => {
-        if (!active) return;
-
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       });
 
     return () => {
       active = false;
     };
-  }, [retryCount]);
+  }, [retryCount, user?.id]);
 
   function handleRetry() {
     setLoading(true);
@@ -158,15 +311,18 @@ export default function Dashboard() {
     setRetryCount((count) => count + 1);
   }
 
-  const firstName = user?.name.split(" ")[0] ?? "";
+  const firstName =
+    user?.name.split(" ")[0] || "";
 
   return (
     <>
+      {/* Original greeting */}
+
       <PageHeader
         title={
           firstName
-            ? `${greeting()}, ${firstName}`
-            : greeting()
+            ? `${dashboardGreeting}, ${firstName}`
+            : dashboardGreeting
         }
         subtitle="Your roommate history is becoming more useful every day."
         action={
@@ -177,6 +333,7 @@ export default function Dashboard() {
       />
 
       {/* Loading state */}
+
       {loading && (
         <Card>
           <div
@@ -199,7 +356,8 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {/* Error and retry state */}
+      {/* Error state */}
+
       {!loading && error && (
         <Card>
           <div
@@ -224,9 +382,12 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {/* Dashboard content */}
+      {/* Original Dashboard layout */}
+
       {!loading && !error && (
         <>
+          {/* Original four statistic cards */}
+
           {stats && (
             <section
               className="dashboard__stats"
@@ -234,36 +395,41 @@ export default function Dashboard() {
             >
               <StatCard
                 label="Profile views"
-                value={stats.profileViews.value}
-                note={stats.profileViews.note}
+                value="—"
+                note="View tracking not available yet"
                 icon={<Eye size={16} />}
               />
 
               <StatCard
                 label="Pending requests"
-                value={stats.pendingRequests.value}
-                note={stats.pendingRequests.note}
+                value={stats.pendingRequests}
+                note={
+                  stats.pendingRequests === 1
+                    ? "1 needs your reply"
+                    : `${stats.pendingRequests} need your reply`
+                }
                 icon={<UserPlus size={16} />}
               />
 
               <StatCard
                 label="Published reviews"
-                value={stats.publishedReviews.value}
-                note={stats.publishedReviews.note}
+                value={publishedCount}
+                note="From verified roommates"
                 icon={<Star size={16} />}
               />
 
               <StatCard
                 label="Trust score"
-                value={stats.trustScore.value}
-                note={stats.trustScore.note}
+                value="—"
+                note="Awaiting a verified scoring system"
                 icon={<ShieldCheck size={16} />}
               />
             </section>
           )}
 
           <div className="dashboard__row">
-            {/* Action needed */}
+            {/* Original Action needed card */}
+
             <Card
               title="Action needed"
               actionLabel="View all"
@@ -300,10 +466,14 @@ export default function Dashboard() {
                     </Button>
                   </div>
 
+                  {/* Original progress bar */}
+
                   <ProgressBar
-                    label="Review process"
-                    current={pending.submittedCount}
-                    total={2}
+                    label="Your review progress"
+                    current={
+                      pending.youSubmitted ? 1 : 0
+                    }
+                    total={1}
                   />
                 </>
               ) : (
@@ -311,35 +481,56 @@ export default function Dashboard() {
                   Nothing needs your attention right now.
                 </p>
               )}
+
+              {stats &&
+                stats.pendingRequests > 0 && (
+                  <div
+                    style={{
+                      marginTop: 16,
+                    }}
+                  >
+                    <Button
+                      to="/requests"
+                      variant="secondary"
+                      size="sm"
+                    >
+                      View incoming requests (
+                      {stats.pendingRequests})
+                    </Button>
+                  </div>
+                )}
             </Card>
 
-            {/* Recent activity */}
+            {/* Original Recent activity card */}
+
             <Card title="Recent activity">
               {activity.length > 0 ? (
                 <ul className="activity">
-                  {activity.map((item) => (
-                    <li
-                      key={item.id}
-                      className="activity__item"
-                    >
-                      <span
-                        className="activity__icon"
-                        aria-hidden="true"
+                  {activity
+                    .slice(0, 3)
+                    .map((item) => (
+                      <li
+                        key={item.id}
+                        className="activity__item"
                       >
-                        {activityIcons[item.kind]}
-                      </span>
+                        <span
+                          className="activity__icon"
+                          aria-hidden="true"
+                        >
+                          {item.icon}
+                        </span>
 
-                      <div>
-                        <p className="activity__title">
-                          {item.title}
-                        </p>
+                        <div>
+                          <p className="activity__title">
+                            {item.title}
+                          </p>
 
-                        <p className="activity__time">
-                          {item.time}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
+                          <p className="activity__time">
+                            {item.time}
+                          </p>
+                        </div>
+                      </li>
+                    ))}
                 </ul>
               ) : (
                 <p className="action-empty">
@@ -349,7 +540,8 @@ export default function Dashboard() {
             </Card>
           </div>
 
-          {/* Suggested students */}
+          {/* Original student cards */}
+
           <Card
             title="Students you may know"
             actionLabel="Explore all"
@@ -369,8 +561,9 @@ export default function Dashboard() {
               </div>
             ) : (
               <p className="action-empty">
-                No students to suggest right now.
-                Check back later or explore all students.
+                No other student profiles are available
+                yet. Check back once more CSUN
+                students join RoomieReport.
               </p>
             )}
           </Card>

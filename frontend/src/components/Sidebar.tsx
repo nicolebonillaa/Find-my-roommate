@@ -1,6 +1,10 @@
 
 import { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+
+import {
+  NavLink,
+  useNavigate,
+} from "react-router-dom";
 
 import {
   House,
@@ -13,7 +17,9 @@ import {
   LogOut,
 } from "lucide-react";
 
+import { signOutUser } from "../services/authService";
 import { useAuth } from "../auth/AuthProvider";
+
 import Avatar from "./Avatar";
 
 import roommateLogo from "../assets/roomiereport-logo-white.svg";
@@ -26,21 +32,37 @@ export default function Sidebar() {
   const navigate = useNavigate();
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [signOutError, setSignOutError] = useState("");
 
-  function handleSignOut() {
-    // Clear the temporary demo session.
-    sessionStorage.removeItem(
-      "roomiereport-demo-session"
-    );
+  /* Sign out through Firebase */
 
-    setMenuOpen(false);
+  async function handleSignOut() {
+    try {
+      setSignOutError("");
 
-    navigate("/login", { replace: true });
+      await signOutUser();
+
+      setMenuOpen(false);
+
+      navigate("/login", {
+        replace: true,
+      });
+    } catch (error) {
+      console.error(
+        "Could not sign out:",
+        error
+      );
+
+      setSignOutError(
+        "Unable to sign out. Please try again."
+      );
+    }
   }
 
   return (
     <aside className="sidebar">
-      {/* RoomieReport logo */}
+      {/* RoomieReport branding */}
+
       <div className="sidebar__brand">
         <img
           src={roommateLogo}
@@ -55,11 +77,13 @@ export default function Sidebar() {
       </div>
 
       {/* Workspace label */}
+
       <p className="sidebar__label">
         WORKSPACE
       </p>
 
       {/* Navigation links */}
+
       <nav className="sidebar__nav">
         <NavLink to="/dashboard">
           <House size={18} />
@@ -88,6 +112,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Bottom user section */}
+
       {user && (
         <div className="sidebar__user">
           <button
@@ -100,6 +125,7 @@ export default function Sidebar() {
             aria-controls="sidebar-user-menu"
           >
             {/* Profile avatar */}
+
             <span className="sidebar__avatar">
               <Avatar
                 user={profile?.user ?? user}
@@ -110,6 +136,7 @@ export default function Sidebar() {
             </span>
 
             {/* User information */}
+
             <span className="sidebar__user-info">
               <strong>
                 {profile?.user.name ?? user.name}
@@ -121,6 +148,7 @@ export default function Sidebar() {
             </span>
 
             {/* Dropdown arrow */}
+
             {menuOpen ? (
               <ChevronUp size={17} />
             ) : (
@@ -128,7 +156,8 @@ export default function Sidebar() {
             )}
           </button>
 
-          {/* Expanded menu */}
+          {/* Expanded account menu */}
+
           {menuOpen && (
             <div
               className="sidebar__user-menu"
@@ -142,6 +171,12 @@ export default function Sidebar() {
                 <LogOut size={17} />
                 <span>Sign out</span>
               </button>
+
+              {signOutError && (
+                <p role="alert">
+                  {signOutError}
+                </p>
+              )}
             </div>
           )}
         </div>

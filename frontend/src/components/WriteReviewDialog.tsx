@@ -1,12 +1,19 @@
-
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+
 import { Lock, X } from "lucide-react";
 
-import type { PendingReview, ReviewScores } from "../types";
-import { submitRoommateReview } from "../services/api";
+import type {
+  PendingReview,
+  ReviewScores,
+} from "../types";
+
+import {
+  submitFirebaseReview,
+} from "../services/firebaseReviews";
 
 import Avatar from "./Avatar";
+
 import "../styles/WriteReviewDialog.css";
 
 type ScoreKey = keyof ReviewScores;
@@ -19,7 +26,10 @@ const categories: {
   { key: "noiseScore", label: "Noise level" },
   { key: "communicationScore", label: "Communication" },
   { key: "privacyScore", label: "Privacy" },
-  { key: "responsibilityScore", label: "Responsibility" },
+  {
+    key: "responsibilityScore",
+    label: "Responsibility",
+  },
   { key: "paymentScore", label: "Payments" },
 ];
 
@@ -49,7 +59,8 @@ export default function WriteReviewDialog({
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Close the popup with Escape.
+  /* Close the popup with Escape */
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape" && !saving) {
@@ -57,7 +68,10 @@ export default function WriteReviewDialog({
       }
     }
 
-    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener(
+      "keydown",
+      handleKeyDown
+    );
 
     return () => {
       document.removeEventListener(
@@ -67,13 +81,19 @@ export default function WriteReviewDialog({
     };
   }, [onClose, saving]);
 
+  /* Submit the review through Firebase */
+
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
-    if (categories.some(({ key }) => !scores[key])) {
-      setError("Please rate all six categories.");
+    if (
+      categories.some(({ key }) => !scores[key])
+    ) {
+      setError(
+        "Please rate all six categories."
+      );
       return;
     }
 
@@ -88,15 +108,13 @@ export default function WriteReviewDialog({
     setError("");
 
     try {
-      await submitRoommateReview(
-        pending.connectionId,
-        {
-          ...(scores as ReviewScores),
-          positiveComment: positiveComment.trim(),
-          futureRoommateComment:
-            futureRoommateComment.trim(),
-        }
-      );
+      await submitFirebaseReview({
+        connectionId: pending.connectionId,
+        scores: scores as ReviewScores,
+        positiveComment: positiveComment.trim(),
+        futureRoommateComment:
+          futureRoommateComment.trim(),
+      });
 
       onSubmitted();
     } catch (cause) {
@@ -128,6 +146,8 @@ export default function WriteReviewDialog({
         aria-modal="true"
         aria-labelledby="write-review-title"
       >
+        {/* Popup header */}
+
         <div className="write-review-dialog__header">
           <div>
             <h2 id="write-review-title">
@@ -151,15 +171,23 @@ export default function WriteReviewDialog({
           </button>
         </div>
 
+        {/* Roommate information */}
+
         <div className="write-review-dialog__roommate">
           <Avatar user={pending.roommate} />
 
           <div>
-            <strong>{pending.roommate.name}</strong>
+            <strong>
+              {pending.roommate.name}
+            </strong>
+
             <p>
               Confirmed roommate relationship ·{" "}
-              {pending.daysLeft} day
-              {pending.daysLeft === 1 ? "" : "s"} left
+              {pending.daysLeft}{" "}
+              {pending.daysLeft === 1
+                ? "day"
+                : "days"}{" "}
+              left
             </p>
           </div>
         </div>
@@ -169,6 +197,8 @@ export default function WriteReviewDialog({
             Rate your roommate's living habits (1–5)
           </h3>
 
+          {/* Review ratings */}
+
           <div className="write-review-dialog__grid">
             {categories.map(({ key, label }) => (
               <div
@@ -177,6 +207,7 @@ export default function WriteReviewDialog({
               >
                 <div className="write-review-dialog__rating-label">
                   <strong>{label}</strong>
+
                   <span>
                     {scores[key]
                       ? `${scores[key]} / 5`
@@ -189,38 +220,50 @@ export default function WriteReviewDialog({
                   role="group"
                   aria-label={`${label} rating`}
                 >
-                  {[1, 2, 3, 4, 5].map((value) => (
-                    <button
-                      type="button"
-                      key={value}
-                      aria-label={`${label}: ${value} out of 5`}
-                      aria-pressed={scores[key] === value}
-                      className={
-                        value <= (scores[key] ?? 0)
-                          ? "is-selected"
-                          : ""
-                      }
-                      onClick={() =>
-                        setScores((previous) => ({
-                          ...previous,
-                          [key]: value,
-                        }))
-                      }
-                    >
-                      ★
-                    </button>
-                  ))}
+                  {[1, 2, 3, 4, 5].map(
+                    (value) => (
+                      <button
+                        type="button"
+                        key={value}
+                        aria-label={`${label}: ${value} out of 5`}
+                        aria-pressed={
+                          scores[key] === value
+                        }
+                        className={
+                          value <=
+                          (scores[key] ?? 0)
+                            ? "is-selected"
+                            : ""
+                        }
+                        onClick={() =>
+                          setScores((current) => ({
+                            ...current,
+                            [key]: value,
+                          }))
+                        }
+                      >
+                        ★
+                      </button>
+                    )
+                  )}
                 </div>
               </div>
             ))}
           </div>
 
+          {/* Written feedback */}
+
           <label className="write-review-dialog__field">
-            <strong>What went well? *</strong>
+            <strong>
+              What went well? *
+            </strong>
+
             <textarea
               value={positiveComment}
               onChange={(event) =>
-                setPositiveComment(event.target.value)
+                setPositiveComment(
+                  event.target.value
+                )
               }
               maxLength={800}
               placeholder="Describe something your roommate did well..."
@@ -232,6 +275,7 @@ export default function WriteReviewDialog({
             <strong>
               Would you live together again? (optional)
             </strong>
+
             <textarea
               value={futureRoommateComment}
               onChange={(event) =>
@@ -243,6 +287,8 @@ export default function WriteReviewDialog({
               placeholder="Share your thoughts for a future roommate..."
             />
           </label>
+
+          {/* Review privacy */}
 
           <p className="write-review-dialog__privacy">
             <Lock size={15} />
@@ -259,6 +305,8 @@ export default function WriteReviewDialog({
               {error}
             </p>
           )}
+
+          {/* Form buttons */}
 
           <div className="write-review-dialog__actions">
             <button

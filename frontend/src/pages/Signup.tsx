@@ -1,13 +1,19 @@
 
 import { useState } from "react";
 import type { FormEvent } from "react";
+
 import { useNavigate } from "react-router-dom";
+import {
+  updateProfile as updateFirebaseAuthProfile,
+} from "firebase/auth";
 
 import AuthLayout from "../components/AuthLayout";
 import {
   FieldError,
   PasswordInput,
 } from "../components/AuthFields";
+
+import { signUp } from "../services/authService";
 
 type Errors = Record<string, string>;
 
@@ -18,15 +24,27 @@ export default function Signup() {
 
   const [name, setName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
-  const [signupPassword, setSignupPassword] = useState("");
-  const [signupErrors, setSignupErrors] = useState<Errors>({});
+  const [signupPassword, setSignupPassword] =
+    useState("");
 
-  function handleSignup(event: FormEvent<HTMLFormElement>) {
+  const [signupErrors, setSignupErrors] =
+    useState<Errors>({});
+
+  const [pending, setPending] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  /* Create an account with Firebase */
+
+  async function handleSignup(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
+
+    if (pending) return;
 
     const errors: Errors = {};
 
-    if (!name.trim()) {
+    if (name.trim().length < 2) {
       errors.name = "Enter your full name.";
     }
 
@@ -45,12 +63,38 @@ export default function Signup() {
 
     if (Object.keys(errors).length > 0) return;
 
-    // Firebase account creation will be connected later.
-    navigate("/verify", {
-      state: {
+    setPending(true);
+    setNotice("");
+
+    try {
+      const { user } = await signUp({
+        name: name.trim(),
         email: signupEmail.trim(),
-      },
-    });
+        password: signupPassword,
+      });
+
+      /* Save the student's name in Firebase Auth */
+
+      await updateFirebaseAuthProfile(user, {
+        displayName: name.trim(),
+      });
+
+      /* Continue to email verification */
+
+      navigate("/verify", {
+        state: {
+          email: signupEmail.trim(),
+        },
+      });
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "Unable to create account."
+      );
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -60,7 +104,8 @@ export default function Signup() {
       </h1>
 
       <p className="rr-auth__sub">
-        Use your CSUN email so we can confirm you're a student.
+        Use your CSUN email so we can confirm
+        you're a student.
       </p>
 
       <form
@@ -69,6 +114,7 @@ export default function Signup() {
         onSubmit={handleSignup}
       >
         {/* Full name */}
+
         <div
           className={`rr-field${
             signupErrors.name ? " has-error" : ""
@@ -100,6 +146,7 @@ export default function Signup() {
         </div>
 
         {/* CSUN email */}
+
         <div
           className={`rr-field${
             signupErrors.email ? " has-error" : ""
@@ -131,6 +178,7 @@ export default function Signup() {
         </div>
 
         {/* Password */}
+
         <div
           className={`rr-field${
             signupErrors.password ? " has-error" : ""
@@ -160,15 +208,26 @@ export default function Signup() {
         </div>
 
         {/* Create account button */}
+
         <button
           className="rr-auth__btn rr-auth__btn--primary"
           type="submit"
+          disabled={pending}
         >
-          Create account
+          {pending
+            ? "Creating account..."
+            : "Create account"}
         </button>
 
+        {notice && (
+          <p className="rr-auth__notice" role="alert">
+            {notice}
+          </p>
+        )}
+
         <p className="rr-auth__fine">
-          We'll email you a link to confirm your CSUN address.
+          We'll email you a link to confirm your
+          CSUN address.
         </p>
       </form>
     </AuthLayout>

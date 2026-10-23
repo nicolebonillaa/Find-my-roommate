@@ -4,7 +4,8 @@ import { useSearchParams } from "react-router-dom";
 
 import PageHeader from "../components/PageHeader";
 import StudentCard from "../components/StudentCard";
-import { getStudents } from "../services/api";
+
+import { getFirebaseStudents } from "../services/firebaseRoommates";
 
 import {
   buildSearchParams,
@@ -18,50 +19,55 @@ import type { Student } from "../types";
 import "../styles/FindRoommatesSearch.css";
 
 export default function FindRoommates() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] =
+    useSearchParams();
+
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState("");
   const [sort, setSort] = useState("name");
+  const [retryCount, setRetryCount] = useState(0);
 
   const { query, filters } = readSearchParams(searchParams);
 
-  // Load students and allow retrying if the request fails.
-  const [retryCount, setRetryCount] = useState(0);
+  /* Load verified student profiles from Firebase */
 
   useEffect(() => {
     let active = true;
 
-    getStudents()
+    getFirebaseStudents()
       .then((data) => {
         if (!active) return;
 
         setStudents(data);
-        setError(false);
-     })
-      .catch(() => {
-      if (!active) return;
+        setError("");
+      })
+      .catch((err) => {
+        if (!active) return;
 
-      setError(true);
-    })
-    .finally(() => {
-      if (active) {
-        setLoading(false);
-      }
-    });
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to load student profiles."
+        );
+      })
+      .finally(() => {
+        if (active) {
+          setLoading(false);
+        }
+      });
 
-  return () => {
-    active = false;
-  };
-}, [retryCount]);
+    return () => {
+      active = false;
+    };
+  }, [retryCount]);
 
-function loadStudents() {
-  setLoading(true);
-  setError(false);
-  setRetryCount((count) => count + 1);
-}
+  function loadStudents() {
+    setLoading(true);
+    setError("");
+    setRetryCount((count) => count + 1);
+  }
 
-  // Keep lifestyle filters on this page.
   const matching = students
     .filter((student) =>
       matchesRoommateSearch(student, query, filters)
@@ -172,14 +178,12 @@ function loadStudents() {
         ) : error ? (
           <div className="roomie-results__empty">
             <h3>Could not load students</h3>
-            <p>
-              There was a problem loading student profiles.
-              Please try again.
-            </p>
+            <p>{error}</p>
+
             <button
               type="button"
               className="btn btn__secondary btn__sm"
-              onClick={() => void loadStudents()}
+              onClick={loadStudents}
             >
               Try again
             </button>
@@ -188,8 +192,8 @@ function loadStudents() {
           <div className="roomie-results__empty">
             <h3>No students to show yet</h3>
             <p>
-              Verified CSUN student profiles will appear here
-              as students join RoomieReport.
+              Verified CSUN student profiles will appear
+              here as students join RoomieReport.
             </p>
           </div>
         ) : matching.length > 0 ? (
@@ -204,8 +208,8 @@ function loadStudents() {
           <div className="roomie-results__empty">
             <h3>No students match yet</h3>
             <p>
-              Try removing a filter or searching for
-              something else.
+              Try removing a filter or searching
+              for something else.
             </p>
 
             <button

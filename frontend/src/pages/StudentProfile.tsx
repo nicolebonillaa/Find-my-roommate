@@ -1,7 +1,9 @@
 
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+
 import { Link, useParams } from "react-router-dom";
+
 import {
   ArrowLeft,
   CheckCircle2,
@@ -9,18 +11,18 @@ import {
   LockKeyhole,
   Send,
   ShieldCheck,
-  Star,
 } from "lucide-react";
 
-import {
-  getAuthorizedPublishedReviewsForStudent,
-  getStudent,
-  sendRoommateRequest,
-  useRequestData,
-} from "../services/api";
+import { useAuth } from "../auth/AuthProvider";
 
-import { CURRENT_USER_ID } from "../data/mock";
-import type { Review, Student } from "../types";
+import {
+  firebaseRequestActions,
+  getFirebaseStudent,
+  useFirebaseRoommates,
+} from "../services/firebaseRoommates";
+
+import type { Student } from "../types";
+
 import Avatar from "../components/Avatar";
 import PageHeader from "../components/PageHeader";
 
@@ -37,26 +39,39 @@ const preferenceFields = [
 
 export default function StudentProfile() {
   const { id } = useParams<{ id: string }>();
-  const { requests, connections } = useRequestData();
+  const { user } = useAuth();
+
+  const currentUserId = user?.id || "";
+
+  const {
+    requests,
+    connections,
+    loading: requestsLoading,
+    error: requestsError,
+    refresh,
+  } = useFirebaseRoommates();
 
   const [student, setStudent] = useState<Student | null>(null);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
 
-  const [showRequestForm, setShowRequestForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  const [showRequestForm, setShowRequestForm] =
+    useState(false);
+
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [requestError, setRequestError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // Load the student for the URL.
+  /* Load the selected student's Firebase profile */
+
   useEffect(() => {
     let active = true;
 
     async function loadProfile() {
       setLoading(true);
-      setLoadError(false);
+      setLoadError("");
       setStudent(null);
       setShowRequestForm(false);
       setMessage("");
@@ -69,13 +84,18 @@ export default function StudentProfile() {
       }
 
       try {
-        const data = await getStudent(id);
+        const data = await getFirebaseStudent(id);
+
         if (active) {
-          setStudent(data ?? null);
+          setStudent(data);
         }
-      } catch {
+      } catch (err) {
         if (active) {
-          setLoadError(true);
+          setLoadError(
+            err instanceof Error
+              ? err.message
+              : "Unable to load student."
+          );
         }
       } finally {
         if (active) {
@@ -91,79 +111,56 @@ export default function StudentProfile() {
     };
   }, [id]);
 
-  const isMyProfile = student?.userId === CURRENT_USER_ID;
+  const isMyProfile =
+    student?.userId === currentUserId;
 
   const connection = connections.find(
     (item) =>
       student &&
       item.status !== "closed" &&
-      item.userIds.includes(CURRENT_USER_ID) &&
+      item.userIds.includes(currentUserId) &&
       item.userIds.includes(student.userId)
   );
 
-  const request = requests.find(
+  const request = [...requests].reverse().find(
     (item) =>
       student &&
-      item.status !== "ended" &&
-      (
-        (item.senderId === CURRENT_USER_ID &&
-          item.receiverId === student.userId) ||
-        (item.receiverId === CURRENT_USER_ID &&
-          item.senderId === student.userId)
-      )
+      item.status === "pending" &&
+      ((item.senderId === currentUserId &&
+        item.receiverId === student.userId) ||
+        (item.receiverId === currentUserId &&
+          item.senderId === student.userId))
   );
 
-  const connected = Boolean(connection) ||
-    request?.status === "accepted";
+  const connected = Boolean(connection);
 
   const outgoingPending =
     request?.status === "pending" &&
-    request.senderId === CURRENT_USER_ID;
+    request.senderId === currentUserId;
 
   const incomingPending =
     request?.status === "pending" &&
-    request.receiverId === CURRENT_USER_ID;
+    request.receiverId === currentUserId;
 
-  // Only request reviews when a connection is accepted.
-  useEffect(() => {
-    let active = true;
-
-    async function loadReviews() {
-      setReviews([]);
-
-      if (!id || !connected) return;
-
-      try {
-        const data =
-          await getAuthorizedPublishedReviewsForStudent(id);
-
-        if (active) {
-          setReviews(data);
-        }
-      } catch {
-        if (active) {
-          setReviews([]);
-        }
-      }
-    }
-
-    void loadReviews();
-
-    return () => {
-      active = false;
-    };
-  }, [id, connected]);
+  /* Send a real Firebase roommate request */
 
   async function handleSendRequest(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
-    if (!student || sending) return;
+    if (!student || sending || requestsLoading) return;
 
     if (message.trim().length < 10) {
       setRequestError(
         "Please write at least 10 characters."
+      );
+      return;
+    }
+
+    if (message.trim().length > 500) {
+      setRequestError(
+        "Your message must be 500 characters or fewer."
       );
       return;
     }
@@ -173,18 +170,20 @@ export default function StudentProfile() {
     setSuccess("");
 
     try {
-      await sendRoommateRequest(
+      await firebaseRequestActions.send(
         student.userId,
         message.trim()
       );
 
+      await refresh();
+
       setShowRequestForm(false);
       setMessage("");
       setSuccess("Your roommate request was sent.");
-    } catch (error) {
+    } catch (err) {
       setRequestError(
-        error instanceof Error
-          ? error.message
+        err instanceof Error
+          ? err.message
           : "Could not send your request."
       );
     } finally {
@@ -199,6 +198,7 @@ export default function StudentProfile() {
           title="Student profile"
           subtitle="Loading student information..."
         />
+
         <div className="student-profile__state">
           Loading profile...
         </div>
@@ -206,36 +206,25 @@ export default function StudentProfile() {
     );
   }
 
-  if (loadError) {
+  if (loadError || !student) {
     return (
       <>
         <PageHeader
           title="Student profile"
-          subtitle="Unable to load this profile."
+          subtitle="This student could not be loaded."
         />
-        <div className="student-profile__state">
-          <h2>Could not load student</h2>
-          <p>Please try again later.</p>
-          <Link to="/find">Back to Find roommates</Link>
-        </div>
-      </>
-    );
-  }
 
-  if (!student) {
-    return (
-      <>
-        <PageHeader
-          title="Student profile"
-          subtitle="This student could not be found."
-        />
         <div className="student-profile__state">
-          <h2>Student not found</h2>
+          <h2>Student unavailable</h2>
+
           <p>
-            This profile may not exist or may no longer
-            be available.
+            {loadError ||
+              "This student profile could not be found."}
           </p>
-          <Link to="/find">Back to Find roommates</Link>
+
+          <Link to="/find">
+            Back to Find roommates
+          </Link>
         </div>
       </>
     );
@@ -260,6 +249,7 @@ export default function StudentProfile() {
         </Link>
 
         {/* Student header */}
+
         <section className="student-profile__hero">
           <div className="student-profile__identity">
             <Avatar user={student.user} size="lg" />
@@ -269,10 +259,7 @@ export default function StudentProfile() {
 
               <span className="student-profile__verified">
                 <ShieldCheck size={15} />
-                {student.user.verificationStatus ===
-                "verified"
-                  ? "Verified CSUN student"
-                  : "Verification pending"}
+                Verified CSUN student
               </span>
             </div>
           </div>
@@ -282,6 +269,18 @@ export default function StudentProfile() {
               <span className="student-profile__status">
                 This is your profile
               </span>
+            ) : requestsLoading ? (
+              <span className="student-profile__status">
+                Checking connection...
+              </span>
+            ) : requestsError ? (
+              <button
+                type="button"
+                className="student-profile__button"
+                onClick={() => void refresh()}
+              >
+                Retry connection check
+              </button>
             ) : connected ? (
               <span className="student-profile__status student-profile__status--connected">
                 <CheckCircle2 size={16} />
@@ -325,72 +324,79 @@ export default function StudentProfile() {
         )}
 
         {/* Request form */}
-        {showRequestForm && !connected &&
-          !outgoingPending && !incomingPending && (
-          <section className="student-profile__panel">
-            <h3>Send a request to {firstName}</h3>
-            <p className="student-profile__muted">
-              Introduce yourself and explain why
-              you would like to connect.
-            </p>
 
-            <form onSubmit={handleSendRequest}>
-              <label
-                htmlFor="student-profile-message"
-                className="student-profile__field-label"
-              >
-                Your message
-              </label>
+        {showRequestForm &&
+          !connected &&
+          !outgoingPending &&
+          !incomingPending &&
+          !requestsLoading &&
+          !requestsError && (
+            <section className="student-profile__panel">
+              <h3>Send a request to {firstName}</h3>
 
-              <textarea
-                id="student-profile-message"
-                value={message}
-                onChange={(event) =>
-                  setMessage(event.target.value)
-                }
-                maxLength={500}
-                placeholder={`Hi ${firstName}, I'd like to connect with you on RoomieReport...`}
-                required
-              />
+              <p className="student-profile__muted">
+                Introduce yourself and explain why
+                you would like to connect.
+              </p>
 
-              {requestError && (
-                <p
-                  className="student-profile__error"
-                  role="alert"
+              <form onSubmit={handleSendRequest}>
+                <label
+                  htmlFor="student-profile-message"
+                  className="student-profile__field-label"
                 >
-                  {requestError}
-                </p>
-              )}
+                  Your message
+                </label>
 
-              <div className="student-profile__form-actions">
-                <button
-                  type="button"
-                  className="student-profile__secondary-button"
-                  onClick={() =>
-                    setShowRequestForm(false)
+                <textarea
+                  id="student-profile-message"
+                  value={message}
+                  onChange={(event) =>
+                    setMessage(event.target.value)
                   }
-                  disabled={sending}
-                >
-                  Cancel
-                </button>
+                  maxLength={500}
+                  placeholder={`Hi ${firstName}, I'd like to connect with you on RoomieReport...`}
+                  required
+                />
 
-                <button
-                  type="submit"
-                  className="student-profile__button"
-                  disabled={sending}
-                >
-                  {sending
-                    ? "Sending..."
-                    : "Send request"}
-                </button>
-              </div>
-            </form>
-          </section>
-        )}
+                {requestError && (
+                  <p
+                    className="student-profile__error"
+                    role="alert"
+                  >
+                    {requestError}
+                  </p>
+                )}
+
+                <div className="student-profile__form-actions">
+                  <button
+                    type="button"
+                    className="student-profile__secondary-button"
+                    disabled={sending}
+                    onClick={() =>
+                      setShowRequestForm(false)
+                    }
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="student-profile__button"
+                    disabled={sending}
+                  >
+                    {sending
+                      ? "Sending..."
+                      : "Send request"}
+                  </button>
+                </div>
+              </form>
+            </section>
+          )}
 
         <div className="student-profile__columns">
           <div className="student-profile__left">
-            {/* About */}
+            {/* About student */}
+
             <section className="student-profile__panel">
               <h3>About {firstName}</h3>
 
@@ -402,15 +408,14 @@ export default function StudentProfile() {
               {student.tags.length > 0 && (
                 <div className="student-profile__tags">
                   {student.tags.map((tag) => (
-                    <span key={tag}>
-                      {tag}
-                    </span>
+                    <span key={tag}>{tag}</span>
                   ))}
                 </div>
               )}
             </section>
 
             {/* Lifestyle preferences */}
+
             <section className="student-profile__panel">
               <h3>Lifestyle preferences</h3>
 
@@ -422,6 +427,7 @@ export default function StudentProfile() {
                       className="student-profile__preference"
                     >
                       <span>{label}</span>
+
                       <strong>
                         {student.preferences[key]}
                       </strong>
@@ -432,92 +438,44 @@ export default function StudentProfile() {
             </section>
           </div>
 
-          {/* Reviews */}
+          {/* Roommate reviews */}
+
           <section className="student-profile__panel student-profile__reviews">
             <h3>Roommate reviews</h3>
 
-            {!connected ? (
-              <div className="student-profile__locked">
-                <LockKeyhole
-                  size={29}
-                  aria-hidden="true"
-                />
+            <div className="student-profile__locked">
+              <LockKeyhole
+                size={29}
+                aria-hidden="true"
+              />
 
-                <h4>Reviews are locked</h4>
+              {connected ? (
+                <>
+                  <h4>Published reviews</h4>
 
-                <p>
-                  Published roommate reviews become
-                  available after {firstName} accepts
-                  your request.
-                </p>
-              </div>
-            ) : reviews.length === 0 ? (
-              <div className="student-profile__locked">
-                <Star
-                  size={28}
-                  aria-hidden="true"
-                />
+                  <p>
+                    You're connected. Authorized published
+                    reviews will be available when the
+                    Firebase Reviews integration is finished.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h4>Reviews are locked</h4>
 
-                <h4>No published reviews available</h4>
-
-                <p>
-                  You're connected. Any published
-                  reviews available to your account
-                  will appear here.
-                </p>
-              </div>
-            ) : (
-              <div className="student-profile__review-list">
-                {reviews.map((review) => {
-                  const scores = [
-                    review.cleanlinessScore,
-                    review.noiseScore,
-                    review.communicationScore,
-                    review.privacyScore,
-                    review.responsibilityScore,
-                    review.paymentScore,
-                  ];
-
-                  const average =
-                    scores.reduce(
-                      (total, score) => total + score,
-                      0
-                    ) / scores.length;
-
-                  return (
-                    <article
-                      key={review.id}
-                      className="student-profile__review"
-                    >
-                      <div className="student-profile__review-heading">
-                        <strong>
-                          <Star size={16} fill="currentColor" />
-                          {average.toFixed(1)} / 5
-                        </strong>
-
-                        <span>
-                          Verified roommate review
-                        </span>
-                      </div>
-
-                      <p>{review.positiveComment}</p>
-
-                      {review.futureRoommateComment && (
-                        <p>
-                          {review.futureRoommateComment}
-                        </p>
-                      )}
-                    </article>
-                  );
-                })}
-              </div>
-            )}
+                  <p>
+                    Published roommate reviews become
+                    available after {firstName} accepts
+                    your request.
+                  </p>
+                </>
+              )}
+            </div>
 
             <p className="student-profile__privacy-note">
               <ShieldCheck size={15} />
-              Only previously published, authorized
-              reviews are shown. New reviews remain
-              private until the reveal conditions are met.
+              New roommate reviews remain private until
+              the reveal conditions are met.
             </p>
           </section>
         </div>

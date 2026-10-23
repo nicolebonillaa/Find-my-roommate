@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Clock3 } from "lucide-react";
+import { CheckCircle2, Clock3 } from "lucide-react";
+
+import { useAuth } from "../auth/AuthProvider";
 
 import Avatar from "../components/Avatar";
 import Badge from "../components/Badge";
@@ -8,16 +10,11 @@ import Button from "../components/Button";
 import Card from "../components/Card";
 import PageHeader from "../components/PageHeader";
 
-import { CURRENT_USER_ID, users } from "../data/mock";
 import {
-  cancelOutgoingRequest,
-  confirmLivingTogether,
-  endRoommateConnection,
-  getDaysRemaining,
-  getOtherRoommate,
-  respondToRequest,
-  useRequestData,
-} from "../services/api";
+  daysRemaining,
+  firebaseRequestActions,
+  useFirebaseRoommates,
+} from "../services/firebaseRoommates";
 
 import type {
   Connection,
@@ -33,86 +30,60 @@ type Confirmation = {
 } | null;
 
 export default function Requests() {
-  const { requests, connections } = useRequestData();
+  const { user } = useAuth();
+  const currentUserId = user?.id || "";
+
+  const {
+    requests,
+    connections,
+    students,
+    loading,
+    error,
+    refresh,
+  } = useFirebaseRoommates();
+
   const location = useLocation();
 
   const [confirmation, setConfirmation] =
     useState<Confirmation>(null);
+
   const [toast, setToast] = useState("");
   const [actionError, setActionError] = useState("");
-  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState("");
+
   const busyRef = useRef(false);
-
-  // Guard immediately against double-clicks, then await the API result.
-  async function runAction(
-    key: string,
-    operation: () => boolean | void | Promise<boolean | void>,
-    successMessage: string
-  ) {
-    if (busyRef.current) return;
-    busyRef.current = true;
-    setBusyAction(key);
-    setActionError("");
-
-    try {
-      const result = await operation();
-      if (result === false) {
-        throw new Error("This request or connection is no longer available. Refresh and try again.");
-      }
-      showToast(successMessage);
-      setConfirmation(null);
-    } catch (error: unknown) {
-      const code = typeof error === "object" && error !== null && "code" in error
-        ? String(error.code) : "";
-      const message = code.includes("permission-denied")
-        ? "You don't have permission to make this change."
-        : code.includes("unauthenticated") || code.startsWith("auth/")
-          ? "Please sign in again to continue."
-          : code.includes("unavailable") || code.includes("network")
-            ? "Connection problem. Please try again."
-            : error instanceof Error && error.message
-              ? error.message
-              : "Couldn't save your change. Please try again.";
-      setActionError(message);
-    } finally {
-      busyRef.current = false;
-      setBusyAction(null);
-    }
-  }
-
   const toastTimer = useRef<number | undefined>(undefined);
 
   const incoming = requests.filter(
-    (r) =>
-      r.receiverId === CURRENT_USER_ID &&
-      (r.status === "pending" || r.status === "declined")
+    (request) =>
+      request.receiverId === currentUserId &&
+      (request.status === "pending" ||
+        request.status === "declined")
   );
 
   const pending = incoming.filter(
-    (r) => r.status === "pending"
+    (request) => request.status === "pending"
   );
 
   const outgoing = requests.filter(
-    (r) =>
-      r.senderId === CURRENT_USER_ID &&
-      r.status === "pending"
+    (request) =>
+      request.senderId === currentUserId &&
+      request.status === "pending"
   );
 
   const activeConnections = connections.filter(
-    (c) =>
-      c.userIds.includes(CURRENT_USER_ID) &&
-      c.status !== "closed"
+    (connection) =>
+      connection.userIds.includes(currentUserId) &&
+      connection.status !== "closed"
   );
 
   const actionCount = activeConnections.filter(
-    (c) =>
-      c.status === "review_open" ||
-      (
-        c.status === "awaiting_confirmation" &&
-        !c.confirmedBy.includes(CURRENT_USER_ID) &&
-        c.confirmedBy.length > 0
-      )
+    (connection) =>
+      connection.status === "awaiting_confirmation" &&
+      !connection.confirmedBy.includes(currentUserId)
   ).length;
+
+  /* Clear the toast timer */
 
   useEffect(() => {
     return () => {
@@ -120,8 +91,8 @@ export default function Requests() {
     };
   }, []);
 
-  // Scroll to and highlight the request linked
-  // from the notification dropdown.
+  /* Scroll to a notification target */
+
   useEffect(() => {
     const targetId = decodeURIComponent(
       location.hash.replace(/^#/, "")
@@ -130,18 +101,12 @@ export default function Requests() {
     if (!targetId) return;
 
     const timer = window.setTimeout(() => {
-      const element = document.getElementById(targetId);
-
-      if (!element) return;
-
-      element.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-
-      element.classList.remove("request-row--flash");
-      void element.offsetWidth;
-      element.classList.add("request-row--flash");
+      document
+        .getElementById(targetId)
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
     }, 80);
 
     return () => window.clearTimeout(timer);
@@ -156,23 +121,81 @@ export default function Requests() {
     }, 2600);
   }
 
-  function handleAnswer(
-    request: RoommateRequest,
-    action: "accepted" | "declined"
+  /* Run Firebase request actions */
+
+  async function runAction(
+    key: string,
+    operation: () => Promise<unknown>,
+    successMessage: string
   ) {
-    void runAction(
-      `request-${request.id}`,
-      () => respondToRequest(request.id, action),
-      action === "accepted"
-        ? "Request accepted. Published reviews are available to authorized connections."
-        : "Request declined"
+    if (busyRef.current) return;
+
+    busyRef.current = true;
+    setBusyAction(key);
+    setActionError("");
+
+    try {
+      await operation();
+      await refresh();
+
+      showToast(successMessage);
+      setConfirmation(null);
+    } catch (cause) {
+      const code =
+        typeof cause === "object" &&
+        cause !== null &&
+        "code" in cause
+          ? String(cause.code)
+          : "";
+
+      setActionError(
+        code.includes("permission-denied")
+          ? "Firebase denied this action. Please check the connection permissions."
+          : cause instanceof Error
+            ? cause.message
+            : "Unable to update your roommate connection."
+      );
+    } finally {
+      busyRef.current = false;
+      setBusyAction("");
+    }
+  }
+
+  function getUser(userId: string): User {
+    return (
+      students[userId] || {
+        id: userId,
+        name: "CSUN Student",
+        email: "",
+        avatarColor: "#3461e8",
+        verificationStatus: "verified",
+      }
     );
   }
 
-  function renderIncoming(request: RoommateRequest) {
-    const sender = users[request.senderId];
+  /* Accept or decline a request */
 
-    if (!sender) return null;
+  function handleAnswer(
+    request: RoommateRequest,
+    response: "accepted" | "declined"
+  ) {
+    void runAction(
+      `request-${request.id}`,
+      () =>
+        firebaseRequestActions.respond(
+          request.id,
+          response
+        ),
+      response === "accepted"
+        ? "Request accepted. You can now confirm your roommate connection."
+        : "Roommate request declined."
+    );
+  }
+
+  /* Incoming requests */
+
+  function renderIncoming(request: RoommateRequest) {
+    const sender = getUser(request.senderId);
 
     return (
       <div
@@ -196,8 +219,9 @@ export default function Requests() {
 
           <p className="request-row__text">
             {request.status === "declined"
-              ? "Declined. Their reviews stay hidden."
-              : `“${request.message}”`}
+              ? "Declined. Reviews remain locked."
+              : request.message ||
+                "Roommate request"}
           </p>
         </div>
 
@@ -206,31 +230,39 @@ export default function Requests() {
             <Button
               variant="secondary"
               size="sm"
-              disabled={busyAction !== null}
-              onClick={() => handleAnswer(request, "declined")}
+              disabled={Boolean(busyAction)}
+              onClick={() =>
+                handleAnswer(request, "declined")
+              }
             >
-              {busyAction === `request-${request.id}` ? "Saving..." : "Decline"}
+              Decline
             </Button>
 
             <Button
               size="sm"
-              disabled={busyAction !== null}
-              onClick={() => handleAnswer(request, "accepted")}
+              disabled={Boolean(busyAction)}
+              onClick={() =>
+                handleAnswer(request, "accepted")
+              }
             >
-              {busyAction === `request-${request.id}` ? "Saving..." : "Accept"}
+              {busyAction === `request-${request.id}`
+                ? "Saving..."
+                : "Accept"}
             </Button>
           </div>
         ) : (
-          <Badge variant="tag">Declined</Badge>
+          <Badge variant="tag">
+            Declined
+          </Badge>
         )}
       </div>
     );
   }
 
-  function renderOutgoing(request: RoommateRequest) {
-    const receiver = users[request.receiverId];
+  /* Sent requests */
 
-    if (!receiver) return null;
+  function renderOutgoing(request: RoommateRequest) {
+    const receiver = getUser(request.receiverId);
 
     return (
       <div
@@ -249,7 +281,7 @@ export default function Requests() {
           </Link>
 
           <p className="request-row__text">
-            You wrote: “{request.message}”
+            You wrote: {request.message}
           </p>
         </div>
 
@@ -260,37 +292,64 @@ export default function Requests() {
           </Badge>
 
           <button
-            className="request-row__text-btn"
             type="button"
-            disabled={busyAction !== null}
-            onClick={() => void runAction(
-              `cancel-${request.id}`,
-              () => cancelOutgoingRequest(request.id),
-              "Request cancelled"
-            )}
+            className="request-row__text-btn"
+            disabled={Boolean(busyAction)}
+            onClick={() =>
+              void runAction(
+                `cancel-${request.id}`,
+                () =>
+                  firebaseRequestActions.cancel(
+                    request.id
+                  ),
+                "Request cancelled."
+              )
+            }
           >
-            {busyAction === `cancel-${request.id}` ? "Cancelling..." : "Cancel"}
+            {busyAction === `cancel-${request.id}`
+              ? "Cancelling..."
+              : "Cancel"}
           </button>
         </div>
       </div>
     );
   }
 
+  /* Roommate connections */
+
   function renderConnection(connection: Connection) {
-    const roommate: User | undefined =
-      getOtherRoommate(connection);
+    const roommateId = connection.userIds.find(
+      (id) => id !== currentUserId
+    );
 
-    if (!roommate) return null;
+    if (!roommateId) return null;
 
-    const first = roommate.name.split(" ")[0];
+    const roommate = getUser(roommateId);
+    const firstName =
+      roommate.name.split(" ")[0];
+
     const meConfirmed =
-      connection.confirmedBy.includes(CURRENT_USER_ID);
+      connection.confirmedBy.includes(currentUserId);
 
     const themConfirmed =
-      connection.confirmedBy.includes(roommate.id);
+      connection.confirmedBy.includes(roommateId);
 
     const reviewOpen =
       connection.status === "review_open";
+
+    const daysLeft = daysRemaining(
+      connection.reviewDeadline
+    );
+
+    const deadlineValid = Boolean(
+      connection.reviewDeadline &&
+      !Number.isNaN(
+        new Date(connection.reviewDeadline).getTime()
+      )
+    );
+
+    const deadlinePassed =
+      deadlineValid && daysLeft === 0;
 
     const confirming =
       confirmation?.id === connection.id &&
@@ -300,12 +359,23 @@ export default function Requests() {
       confirmation?.id === connection.id &&
       confirmation.kind === "end";
 
+    const deadlineText = deadlineValid
+      ? new Date(
+          connection.reviewDeadline!
+        ).toLocaleString([], {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })
+      : "";
+
     return (
       <div
         key={connection.id}
         id={`row-${connection.id}`}
         className={`request-row${
-          reviewOpen ? " request-row--highlight" : ""
+          reviewOpen
+            ? " request-row--highlight"
+            : ""
         }`}
       >
         <Avatar user={roommate} size="md" />
@@ -318,39 +388,76 @@ export default function Requests() {
             {roommate.name}
           </Link>
 
+          {/* Review deadline */}
+
           {reviewOpen ? (
             <>
               <p className="request-row__text">
-                Both of you confirmed that you
-                lived together.
+                <strong>
+                  Both roommates confirmed living together.
+                </strong>
               </p>
 
               <div className="request-row__meta">
-                <Badge variant="orange">
-                  {getDaysRemaining(
-                    connection.reviewDeadline
-                  )}{" "}
-                  days left to submit
+                {deadlinePassed ? (
+                  <Badge variant="tag">
+                    Review deadline passed
+                  </Badge>
+                ) : (
+                  <Badge variant="orange">
+                    <Clock3 size={13} />
+                    {deadlineValid
+                      ? `${daysLeft} ${
+                          daysLeft === 1
+                            ? "day"
+                            : "days"
+                        } left`
+                      : "Deadline unavailable"}
+                  </Badge>
+                )}
+              </div>
+
+              {deadlineValid && (
+                <p className="request-row__text">
+                  Review submission deadline:{" "}
+                  <strong>
+                    {deadlineText}
+                  </strong>
+                </p>
+              )}
+            </>
+          ) : meConfirmed ? (
+            <>
+              <p className="request-row__text">
+                <strong>
+                  <CheckCircle2
+                    size={14}
+                    style={{
+                      verticalAlign: "middle",
+                    }}
+                  />{" "}
+                  You confirmed living together.
+                </strong>
+              </p>
+
+              <p className="request-row__text">
+                Waiting for {firstName} to confirm.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="request-row__text">
+                {themConfirmed
+                  ? `${firstName} confirmed living together. Your confirmation is needed.`
+                  : "Request accepted. Both roommates must confirm living together."}
+              </p>
+
+              <div className="request-row__meta">
+                <Badge variant="blue">
+                  Awaiting confirmation
                 </Badge>
               </div>
             </>
-          ) : meConfirmed ? (
-            <p className="request-row__text">
-              You confirmed.{" "}
-              <strong>Waiting for {first}</strong>{" "}
-              to confirm.
-            </p>
-          ) : (
-            <p className="request-row__text">
-              {themConfirmed ? (
-                <>
-                  <strong>{first} confirmed</strong>{" "}
-                  you lived together. Your turn.
-                </>
-              ) : (
-                "Accepted. Confirm once you've both lived together."
-              )}
-            </p>
           )}
         </div>
 
@@ -359,26 +466,37 @@ export default function Requests() {
             <button
               type="button"
               className="request-row__text-btn"
-              disabled={busyAction !== null}
-              onClick={() => setConfirmation({ id: connection.id, kind: "end" })}
+              disabled={Boolean(busyAction)}
+              onClick={() =>
+                setConfirmation({
+                  id: connection.id,
+                  kind: "end",
+                })
+              }
             >
               End connection
             </button>
           )}
 
           {reviewOpen ? (
-            getDaysRemaining(connection.reviewDeadline) > 0 ? (
+            deadlinePassed || !deadlineValid ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled
+              >
+                {deadlinePassed
+                  ? "Review window ended"
+                  : "Deadline unavailable"}
+              </Button>
+            ) : (
               <Button
                 size="sm"
                 to={`/reviews/write/${connection.id}`}
               >
                 Write review
               </Button>
-      ) : (
-    <Button size="sm" variant="secondary" disabled>
-      Review window ended
-    </Button>
-  )
+            )
           ) : meConfirmed ? (
             <Button
               size="sm"
@@ -386,68 +504,88 @@ export default function Requests() {
               disabled
             >
               <Clock3 size={14} />
-              Waiting
+              Waiting for roommate
             </Button>
           ) : (
             <Button
               size="sm"
-              disabled={busyAction !== null}
-              onClick={() => setConfirmation({ id: connection.id, kind: "confirm" })}
+              disabled={Boolean(busyAction)}
+              onClick={() =>
+                setConfirmation({
+                  id: connection.id,
+                  kind: "confirm",
+                })
+              }
             >
-              I lived with {first}
+              I lived with {firstName}
             </Button>
           )}
         </div>
+
+        {/* Confirm living together */}
 
         {confirming && (
           <div className="request-row__confirm">
             <p>
               <strong>
-                Did you and {first} really share a home?
+                Did you and {firstName} really live together?
               </strong>{" "}
-              Both of you have to confirm before
-              reviews open.
+              Both roommates must confirm before
+              the seven-day review window begins.
             </p>
 
             <Button
               size="sm"
               variant="secondary"
-              disabled={busyAction !== null}
-              onClick={() => setConfirmation(null)}
+              disabled={Boolean(busyAction)}
+              onClick={() =>
+                setConfirmation(null)
+              }
             >
               Cancel
             </Button>
 
             <Button
               size="sm"
-              disabled={busyAction !== null}
-              onClick={() => void runAction(
-                `confirm-${connection.id}`,
-                () => confirmLivingTogether(connection.id),
-                themConfirmed
-                  ? "Both confirmed. Review window is open for 7 days."
-                  : "Confirmed. Waiting for them."
-              )}
+              disabled={Boolean(busyAction)}
+              onClick={() =>
+                void runAction(
+                  `confirm-${connection.id}`,
+                  () =>
+                    firebaseRequestActions.confirm(
+                      connection.id
+                    ),
+                  themConfirmed
+                    ? "Both confirmed. Your seven-day review window is now open."
+                    : "Confirmation saved. Waiting for your roommate."
+                )
+              }
             >
-              {busyAction === `confirm-${connection.id}` ? "Confirming..." : "Yes, we lived together"}
+              {busyAction === `confirm-${connection.id}`
+                ? "Confirming..."
+                : "Yes, we lived together"}
             </Button>
           </div>
         )}
+
+        {/* End connection */}
 
         {ending && (
           <div className="request-row__confirm">
             <p>
               <strong>
-                End your connection with {first}?
+                End your connection with {firstName}?
               </strong>{" "}
-              You would need a new request to connect again.
+              You would need a new request to reconnect.
             </p>
 
             <Button
               size="sm"
               variant="secondary"
-              disabled={busyAction !== null}
-              onClick={() => setConfirmation(null)}
+              disabled={Boolean(busyAction)}
+              onClick={() =>
+                setConfirmation(null)
+              }
             >
               Keep
             </Button>
@@ -455,14 +593,21 @@ export default function Requests() {
             <button
               type="button"
               className="btn btn__sm requests__danger"
-              disabled={busyAction !== null}
-              onClick={() => void runAction(
-                `end-${connection.id}`,
-                () => endRoommateConnection(connection.id),
-                "Connection ended"
-              )}
+              disabled={Boolean(busyAction)}
+              onClick={() =>
+                void runAction(
+                  `end-${connection.id}`,
+                  () =>
+                    firebaseRequestActions.end(
+                      connection.id
+                    ),
+                  "Connection ended."
+                )
+              }
             >
-              {busyAction === `end-${connection.id}` ? "Ending..." : "End connection"}
+              {busyAction === `end-${connection.id}`
+                ? "Ending..."
+                : "End connection"}
             </button>
           </div>
         )}
@@ -474,17 +619,56 @@ export default function Requests() {
     <>
       <PageHeader
         title="Roommate requests"
-        subtitle="Accepting a request unlocks the other person's published roommate reviews."
+        subtitle="Manage requests, verify roommate connections, and track review deadlines."
       />
 
-      {actionError && (
-        <div className="requests__error" role="alert">
-          <span>{actionError}</span>
-          <button type="button" onClick={() => setActionError("")} aria-label="Dismiss error">×</button>
+      {(error || actionError) && (
+        <div
+          className="requests__error"
+          role="alert"
+        >
+          <span>
+            {actionError || error}
+          </span>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActionError("");
+              void refresh();
+            }}
+          >
+            Try again
+          </button>
         </div>
       )}
 
+      {/* Refresh requests */}
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginBottom: 16,
+        }}
+      >
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={
+            loading || Boolean(busyAction)
+          }
+          onClick={() => void refresh()}
+        >
+          {loading
+            ? "Refreshing..."
+            : "Refresh requests"}
+        </Button>
+      </div>
+
       <div className="requests">
+        {/* Incoming requests */}
+
         <Card
           title="Incoming requests"
           badge={
@@ -496,7 +680,11 @@ export default function Requests() {
           }
         >
           <div className="requests__list">
-            {incoming.length > 0 ? (
+            {loading ? (
+              <div className="requests__empty">
+                Loading requests...
+              </div>
+            ) : incoming.length > 0 ? (
               incoming.map(renderIncoming)
             ) : (
               <div className="requests__empty">
@@ -506,6 +694,8 @@ export default function Requests() {
             )}
           </div>
         </Card>
+
+        {/* Sent requests */}
 
         {outgoing.length > 0 && (
           <Card
@@ -521,6 +711,8 @@ export default function Requests() {
             </div>
           </Card>
         )}
+
+        {/* Roommate connections */}
 
         {activeConnections.length > 0 && (
           <Card
@@ -546,7 +738,10 @@ export default function Requests() {
       </div>
 
       {toast && (
-        <div className="requests__toast" role="status">
+        <div
+          className="requests__toast"
+          role="status"
+        >
           {toast}
         </div>
       )}
