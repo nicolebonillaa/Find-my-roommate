@@ -1,16 +1,7 @@
-
 import { useRef, useState } from "react";
-import { Pencil, X } from "lucide-react";
-
 import Button from "./Button";
-import { getInitials } from "../utils/getInitials";
-
-import type {
-  Student,
-  LifestylePreferences,
-} from "../types";
-
-import "../styles/PhotoUploader.css";
+import PhotoUploader from "./PhotoUploader";
+import type { Student } from "../types";
 
 interface EditProfileFormProps {
   readonly profile: Student;
@@ -18,136 +9,28 @@ interface EditProfileFormProps {
   readonly onSave: (profile: Student) => void | Promise<void>;
 }
 
-const COLORS = [
-  "#f18b61",
-  "#3461e8",
-  "#9468e9",
-  "#51b989",
-  "#ea7597",
-  "#e5a63e",
-  "#294878",
-  "#4e9ea8",
-];
-
-const preferenceOptions: {
-  key: keyof LifestylePreferences;
-  label: string;
-  options: string[];
-}[] = [
-  {
-    key: "cleanliness",
-    label: "Cleanliness",
-    options: [
-      "Very important",
-      "Moderate",
-      "Flexible",
-    ],
-  },
-  {
-    key: "noise",
-    label: "Noise",
-    options: [
-      "Quiet",
-      "Quiet on weekdays",
-      "Flexible",
-    ],
-  },
-  {
-    key: "guests",
-    label: "Guests",
-    options: [
-      "With notice",
-      "Ask first",
-      "Flexible",
-    ],
-  },
-  {
-    key: "sleepSchedule",
-    label: "Sleep Schedule",
-    options: [
-      "Early bird",
-      "Night owl",
-    ],
-  },
-  {
-    key: "sharedFood",
-    label: "Shared Food",
-    options: [
-      "Ask first",
-      "Share okay",
-    ],
-  },
-  {
-    key: "pets",
-    label: "Pets",
-    options: [
-      "Okay with cats",
-      "No pets",
-    ],
-  },
-];
-
 export default function EditProfileForm({
   profile,
   onCancel,
   onSave,
 }: EditProfileFormProps) {
   const [bio, setBio] = useState(profile.bio);
-
-  const [preferences, setPreferences] =
-    useState<LifestylePreferences>({
-      ...profile.preferences,
-    });
-
+  const [preferences, setPreferences] = useState({
+    ...profile.preferences,
+  });
+  const [photoUrl, setPhotoUrl] = useState(profile.photoUrl);
   const [avatarColor, setAvatarColor] = useState(
     profile.user.avatarColor
   );
-
-  const [selectedColor, setSelectedColor] = useState(
-    profile.user.avatarColor
-  );
-
-  const [avatarEditorOpen, setAvatarEditorOpen] =
-    useState(false);
-
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
-
   const [error, setError] = useState("");
-
-  /* Update a lifestyle preference */
-
-  function updatePreference(
-    key: keyof LifestylePreferences,
-    value: string
-  ) {
-    setPreferences((current) => ({
-      ...current,
-      [key]: value,
-    }));
-  }
-
-  /* Save the selected initials color */
-
-  function applyAvatarColor() {
-    setAvatarColor(selectedColor);
-    setAvatarEditorOpen(false);
-  }
-
-  /* Save the profile to Firestore */
 
   async function handleSave() {
     if (savingRef.current) return;
 
     if (!bio.trim()) {
       setError("Please enter a bio before saving.");
-      return;
-    }
-
-    if (bio.trim().length > 2000) {
-      setError(
-        "Your bio must be 2,000 characters or fewer."
-      );
       return;
     }
 
@@ -159,7 +42,7 @@ export default function EditProfileForm({
       await onSave({
         ...profile,
         bio: bio.trim(),
-        photoUrl: undefined,
+        photoUrl,
         user: {
           ...profile.user,
           avatarColor,
@@ -174,31 +57,19 @@ export default function EditProfileForm({
           ? String(error.code)
           : "";
 
-      if (code.includes("permission-denied")) {
-        setError(
-          "You don't have permission to update this profile."
-        );
-      } else if (
-        code.includes("unauthenticated") ||
-        code.startsWith("auth/")
-      ) {
-        setError(
-          "Please sign in again before saving."
-        );
-      } else if (
-        code.includes("unavailable") ||
-        code.includes("network")
-      ) {
-        setError(
-          "Connection problem. Your changes are still here. Please try again."
-        );
-      } else {
-        setError(
-          error instanceof Error && error.message
-            ? error.message
-            : "Couldn't save your profile. Please try again."
-        );
-      }
+      setError(
+        code.includes("permission-denied")
+          ? "You don't have permission to update this profile."
+          : code.includes("unauthenticated") ||
+              code.startsWith("auth/")
+            ? "Please sign in again before saving."
+            : code.includes("unavailable") ||
+                code.includes("network")
+              ? "Connection problem. Your changes are still here; please try saving again."
+              : error instanceof Error && error.message
+                ? error.message
+                : "Couldn't save your profile. Please try again."
+      );
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -207,59 +78,30 @@ export default function EditProfileForm({
 
   return (
     <div className="edit-profile">
-      {/* Profile avatar */}
+      {/* Profile photo */}
 
       <div className="edit-profile__group">
         <label>Profile Photo</label>
 
-        <div className="profile-photo-field">
-          <button
-            type="button"
-            className="profile-photo-field__edit"
-            aria-label="Customize profile avatar"
-            title="Edit avatar"
-            onClick={() => {
-              setSelectedColor(avatarColor);
-              setAvatarEditorOpen(true);
-            }}
-          >
-            <span
-              className="profile-photo-field__circle"
-              style={{ background: avatarColor }}
-            >
-              {getInitials(profile.user.name)}
-            </span>
-
-            <span className="profile-photo-field__pencil">
-              <Pencil size={14} />
-            </span>
-          </button>
-
-          <div className="profile-photo-field__copy">
-            <strong>Your profile picture</strong>
-
-            <span>
-              Personalize your initials and avatar color.
-            </span>
-
-            <small>
-              Click the pencil on your avatar to edit it.
-            </small>
-          </div>
-        </div>
+        <PhotoUploader
+          name={profile.user.name}
+          photoUrl={photoUrl}
+          avatarColor={avatarColor}
+          onChange={(next) => {
+            setPhotoUrl(next.photoUrl);
+            setAvatarColor(next.avatarColor);
+          }}
+        />
       </div>
 
       {/* Bio */}
 
       <div className="edit-profile__group">
-        <label htmlFor="bio">
-          Bio
-        </label>
+        <label htmlFor="bio">Bio</label>
 
         <textarea
           id="bio"
           rows={4}
-          maxLength={2000}
           value={bio}
           onChange={(event) =>
             setBio(event.target.value)
@@ -270,47 +112,132 @@ export default function EditProfileForm({
       {/* Lifestyle preferences */}
 
       <div className="preferences-grid">
-        {preferenceOptions.map((field) => (
-          <div key={field.key}>
-            <label htmlFor={field.key}>
-              {field.label}
-            </label>
+        <div>
+          <label htmlFor="cleanliness">
+            Cleanliness
+          </label>
 
-            <select
-              id={field.key}
-              value={preferences[field.key]}
-              onChange={(event) =>
-                updatePreference(
-                  field.key,
-                  event.target.value
-                )
-              }
-            >
-              {!field.options.includes(
-                preferences[field.key]
-              ) && (
-                <option
-                  value={preferences[field.key]}
-                >
-                  {preferences[field.key] ||
-                    "Not specified"}
-                </option>
-              )}
+          <select
+            id="cleanliness"
+            value={preferences.cleanliness}
+            onChange={(event) =>
+              setPreferences({
+                ...preferences,
+                cleanliness: event.target.value,
+              })
+            }
+          >
+            <option>Very important</option>
+            <option>Moderate</option>
+            <option>Flexible</option>
+          </select>
+        </div>
 
-              {field.options.map((option) => (
-                <option
-                  key={option}
-                  value={option}
-                >
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-        ))}
+        <div>
+          <label htmlFor="noise">Noise</label>
+
+          <select
+            id="noise"
+            value={preferences.noise}
+            onChange={(event) =>
+              setPreferences({
+                ...preferences,
+                noise: event.target.value,
+              })
+            }
+          >
+            <option>Quiet</option>
+            <option>Quiet on weekdays</option>
+            <option>Flexible</option>
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="guests">Guests</label>
+
+          <select
+            id="guests"
+            value={preferences.guests}
+            onChange={(event) =>
+              setPreferences({
+                ...preferences,
+                guests: event.target.value,
+              })
+            }
+          >
+            <option>With notice</option>
+            <option>Ask first</option>
+            <option>Flexible</option>
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="sleepSchedule">
+            Sleep Schedule
+          </label>
+
+          <select
+            id="sleepSchedule"
+            value={preferences.sleepSchedule}
+            onChange={(event) =>
+              setPreferences({
+                ...preferences,
+                sleepSchedule: event.target.value,
+              })
+            }
+          >
+            <option>Early bird</option>
+            <option>Night owl</option>
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="sharedFood">
+            Shared Food
+          </label>
+
+          <select
+            id="sharedFood"
+            value={preferences.sharedFood}
+            onChange={(event) =>
+              setPreferences({
+                ...preferences,
+                sharedFood: event.target.value,
+              })
+            }
+          >
+            <option>Ask first</option>
+            <option>Share okay</option>
+          </select>
+        </div>
+
+        {/* Pet preferences */}
+
+        <div>
+          <label htmlFor="pets">Pets</label>
+
+          <select
+            id="pets"
+            value={preferences.pets}
+            onChange={(event) =>
+              setPreferences({
+                ...preferences,
+                pets: event.target.value,
+              })
+            }
+          >
+            <option>No pets</option>
+            <option>Okay with cats</option>
+            <option>Okay with dogs</option>
+            <option>Okay with cats and dogs</option>
+            <option>Okay with any pets</option>
+            <option>Prefer a pet-free home</option>
+            <option>I have pets</option>
+          </select>
+        </div>
       </div>
 
-      {/* Save and cancel buttons */}
+      {/* Save errors */}
 
       {error && (
         <p
@@ -320,6 +247,8 @@ export default function EditProfileForm({
           {error}
         </p>
       )}
+
+      {/* Form buttons */}
 
       <div className="edit-profile__actions">
         <Button
@@ -334,177 +263,9 @@ export default function EditProfileForm({
           disabled={saving}
           onClick={() => void handleSave()}
         >
-          {saving
-            ? "Saving..."
-            : "Save Changes"}
+          {saving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
-
-      {/* Avatar color editor */}
-
-      {avatarEditorOpen && (
-        <div
-          className="avatar-editor__overlay"
-          onMouseDown={(event) => {
-            if (
-              event.target === event.currentTarget
-            ) {
-              setAvatarEditorOpen(false);
-            }
-          }}
-        >
-          <section
-            className="avatar-editor"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="avatar-editor-title"
-          >
-            <div className="avatar-editor__header">
-              <h2 id="avatar-editor-title">
-                Customize your avatar
-              </h2>
-
-              <button
-                type="button"
-                className="avatar-editor__close"
-                onClick={() =>
-                  setAvatarEditorOpen(false)
-                }
-                aria-label="Close avatar editor"
-              >
-                <X size={19} />
-              </button>
-            </div>
-
-            <div
-              className="avatar-editor__body"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 20,
-                alignItems: "center",
-              }}
-            >
-              <span
-                className="profile-photo-field__circle"
-                style={{
-                  background: selectedColor,
-                  width: 110,
-                  height: 110,
-                  fontSize: 32,
-                }}
-              >
-                {getInitials(profile.user.name)}
-              </span>
-
-              <p
-                style={{
-                  margin: 0,
-                  textAlign: "center",
-                }}
-              >
-                Choose a background color for
-                your initials.
-              </p>
-
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  justifyContent: "center",
-                  gap: 12,
-                }}
-              >
-                {COLORS.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    onClick={() =>
-                      setSelectedColor(color)
-                    }
-                    aria-label={`Select color ${color}`}
-                    aria-pressed={
-                      selectedColor === color
-                    }
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: "50%",
-                      background: color,
-                      cursor: "pointer",
-                      border:
-                        selectedColor === color
-                          ? "3px solid #192855"
-                          : "3px solid white",
-                      boxShadow:
-                        "0 0 0 1px #dce3f1",
-                    }}
-                  />
-                ))}
-
-                {/* Custom color */}
-
-                <label
-                  title="Choose custom color"
-                  style={{
-                    position: "relative",
-                    width: 38,
-                    height: 38,
-                    borderRadius: "50%",
-                    background:
-                      "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)",
-                    cursor: "pointer",
-                    overflow: "hidden",
-                    border: "3px solid white",
-                    boxShadow:
-                      "0 0 0 1px #dce3f1",
-                  }}
-                >
-                  <input
-                    type="color"
-                    aria-label="Custom avatar color"
-                    value={
-                      /^#[0-9a-f]{6}$/i.test(
-                        selectedColor
-                      )
-                        ? selectedColor
-                        : "#3461e8"
-                    }
-                    onChange={(event) =>
-                      setSelectedColor(
-                        event.target.value
-                      )
-                    }
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      width: "100%",
-                      height: "100%",
-                      opacity: 0,
-                      cursor: "pointer",
-                    }}
-                  />
-                </label>
-              </div>
-            </div>
-
-            <div className="avatar-editor__footer">
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  setAvatarEditorOpen(false)
-                }
-              >
-                Cancel
-              </Button>
-
-              <Button onClick={applyAvatarColor}>
-                Use initials avatar
-              </Button>
-            </div>
-          </section>
-        </div>
-      )}
     </div>
   );
 }
