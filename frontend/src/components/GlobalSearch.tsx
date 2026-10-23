@@ -1,44 +1,90 @@
-import { useEffect, useRef, useState } from "react";
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
+
 import { useNavigate } from "react-router-dom";
 import { Search, X, ChevronRight } from "lucide-react";
 
-import { getStudents } from "../services/api";
+import { useAuth } from "../auth/AuthProvider";
+
+import {
+  getFirebaseStudents,
+} from "../services/firebaseRoommates";
+
 import type { Student } from "../types";
 
 import "../styles/GlobalSearch.css";
 
 export default function GlobalSearch() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
   const searchRef = useRef<HTMLDivElement>(null);
 
   const [query, setQuery] = useState("");
   const [students, setStudents] = useState<Student[]>([]);
+
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
+  const currentUserId = user?.id || "";
+
+  /* Load real student profiles from Firebase */
+
+  const loadStudents = useCallback(async () => {
+    const profiles = await getFirebaseStudents();
+
+    return profiles.filter(
+      (student) => student.userId !== currentUserId
+    );
+  }, [currentUserId]);
+
+  /* Load students when the user signs in */
+
   useEffect(() => {
     let active = true;
 
-    getStudents()
-      .then((data) => {
+    loadStudents()
+      .then((profiles) => {
         if (!active) return;
-        setStudents(data);
+
+        setStudents(profiles);
         setError(false);
       })
       .catch(() => {
         if (!active) return;
+
+        setStudents([]);
         setError(true);
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       });
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [loadStudents]);
+
+  /* Refresh students when searching again */
+
+  async function refreshStudents() {
+    try {
+      const profiles = await loadStudents();
+
+      setStudents(profiles);
+      setError(false);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /* Close search results when clicking outside */
 
   useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
@@ -56,36 +102,58 @@ export default function GlobalSearch() {
       }
     }
 
-    document.addEventListener("mousedown", handleOutsideClick);
-    document.addEventListener("keydown", handleEscape);
+    document.addEventListener(
+      "mousedown",
+      handleOutsideClick
+    );
+
+    document.addEventListener(
+      "keydown",
+      handleEscape
+    );
 
     return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener(
+        "mousedown",
+        handleOutsideClick
+      );
+
+      document.removeEventListener(
+        "keydown",
+        handleEscape
+      );
     };
   }, []);
 
-  // Search by student name only.
+  /* Search real Firebase students by name */
+
   const searchText = query.trim().toLowerCase();
 
   const results = searchText
     ? students.filter((student) =>
-        student.user.name.toLowerCase().includes(searchText)
+        student.user.name
+          .toLowerCase()
+          .includes(searchText)
       )
     : [];
+
+  /* Open the selected student's profile */
 
   function openStudent(student: Student) {
     setQuery("");
     setIsOpen(false);
+
     navigate(`/students/${student.userId}`);
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
 
     if (!searchText) return;
 
-    if (results.length === 1) {
+    if (!loading && !error && results.length === 1) {
       openStudent(results[0]);
     } else {
       setIsOpen(true);
@@ -98,7 +166,10 @@ export default function GlobalSearch() {
   }
 
   return (
-    <div className="global-search" ref={searchRef}>
+    <div
+      className="global-search"
+      ref={searchRef}
+    >
       <form
         className="global-search__form"
         onSubmit={handleSubmit}
@@ -110,7 +181,9 @@ export default function GlobalSearch() {
             value={query}
             placeholder="Search students by name..."
             aria-label="Search CSUN students by name"
-            aria-expanded={isOpen && Boolean(searchText)}
+            aria-expanded={
+              isOpen && Boolean(searchText)
+            }
             aria-controls="global-search-results"
             autoComplete="off"
             onChange={(event) => {
@@ -118,7 +191,11 @@ export default function GlobalSearch() {
               setIsOpen(true);
             }}
             onFocus={() => {
-              if (searchText) setIsOpen(true);
+              if (searchText) {
+                setIsOpen(true);
+              }
+
+              void refreshStudents();
             }}
           />
 
@@ -149,6 +226,8 @@ export default function GlobalSearch() {
         </div>
       </form>
 
+      {/* Firebase search results */}
+
       {isOpen && searchText && (
         <div
           className="global-search__results"
@@ -159,8 +238,12 @@ export default function GlobalSearch() {
               Loading students...
             </p>
           ) : error ? (
-            <p className="global-search__message">
-              Could not load students. Please try again later.
+            <p
+              className="global-search__message"
+              role="alert"
+            >
+              Could not load student profiles.
+              Please try again.
             </p>
           ) : results.length > 0 ? (
             <>
@@ -181,15 +264,22 @@ export default function GlobalSearch() {
                     key={student.userId}
                     type="button"
                     className="global-search__result"
-                    onClick={() => openStudent(student)}
+                    onClick={() =>
+                      openStudent(student)
+                    }
                   >
                     <span className="global-search__result-avatar">
                       {initials}
                     </span>
 
                     <span className="global-search__result-info">
-                      <strong>{student.user.name}</strong>
-                      <small>Verified CSUN student</small>
+                      <strong>
+                        {student.user.name}
+                      </strong>
+
+                      <small>
+                        CSUN student
+                      </small>
                     </span>
 
                     <ChevronRight
@@ -203,7 +293,8 @@ export default function GlobalSearch() {
             </>
           ) : (
             <p className="global-search__message">
-              No students found for "{query.trim()}".
+              No students found for "
+              {query.trim()}".
             </p>
           )}
         </div>
